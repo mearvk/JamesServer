@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+
+  james:
+    depends_on:
+      - elasticsearch
+    image: apache/james:memory-latest
+    container_name: james
+    hostname: james.local
+    command:
+      - --generate-keystore
+    volumes:
+      - ./target/apache-james-elasticsearch-jar-with-dependencies.jar:/root/extensions-jars/apache-james-elasticsearch.jar
+      - ./conf/extensions.properties:/root/conf/extensions.properties
+      - ./conf/elasticsearch.properties:/root/conf/elasticsearch.properties
+
+  elasticsearch:
+    image: elasticsearch:6.4.0
+    environment:
+      - discovery.type=single-node

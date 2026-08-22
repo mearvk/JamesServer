@@ -1,0 +1,166 @@
+/****************************************************************
+ * Licensed to the Apache Software Foundation (ASF) under one   *
+ * or more contributor license agreements.  See the NOTICE file *
+ * distributed with this work for additional information        *
+ * regarding copyright ownership.  The ASF licenses this file   *
+ * to you under the Apache License, Version 2.0 (the            *
+ * "License"); you may not use this file except in compliance   *
+ * with the License.  You may obtain a copy of the License at   *
+ *                                                              *
+ *   http://www.apache.org/licenses/LICENSE-2.0                 *
+ *                                                              *
+ * Unless required by applicable law or agreed to in writing,   *
+ * software distributed under the License is distributed on an  *
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
+ * KIND, either express or implied.  See the License for the    *
+ * specific language governing permissions and limitations      *
+ * under the License.                                           *
+ ****************************************************************/
+
+package org.apache.james.backends.cassandra.components;
+
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.bindMarker;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.deleteFrom;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.selectFrom;
+import static com.datastax.oss.driver.api.querybuilder.QueryBuilder.update;
+import static com.datastax.oss.driver.api.querybuilder.relation.Relation.column;
+import static org.apache.james.backends.cassandra.components.CassandraQuotaCurrentValueTable.CURRENT_VALUE;
+import static org.apache.james.backends.cassandra.components.CassandraQuotaCurrentValueTable.IDENTIFIER;
+import static org.apache.james.backends.cassandra.components.CassandraQuotaCurrentValueTable.QUOTA_COMPONENT;
+import static org.apache.james.backends.cassandra.components.CassandraQuotaCurrentValueTable.QUOTA_TYPE;
+import static org.apache.james.backends.cassandra.components.CassandraQuotaCurrentValueTable.TABLE_NAME;
+
+import jakarta.inject.Inject;
+
+import org.apache.james.backends.cassandra.utils.CassandraAsyncExecutor;
+import org.apache.james.core.quota.QuotaComponent;
+import org.apache.james.core.quota.QuotaCurrentValue;
+import org.apache.james.core.quota.QuotaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.querybuilder.delete.Delete;
+import com.datastax.oss.driver.api.querybuilder.select.Select;
+import com.datastax.oss.driver.api.querybuilder.update.Update;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+public class CassandraQuotaCurrentValueDao {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CassandraQuotaCurrentValueDao.class);
+
+    private final CassandraAsyncExecutor queryExecutor;
+    private final PreparedStatement increaseStatement;
+    private final PreparedStatement decreaseStatement;
+    private final PreparedStatement getQuotaCurrentValueStatement;
+    private final PreparedStatement getQuotasByComponentStatement;
+    private final PreparedStatement deleteQuotaCurrentValueStatement;
+
+    @Inject
+    public CassandraQuotaCurrentValueDao(CqlSession session) {
+        this.queryExecutor = new CassandraAsyncExecutor(session);
+        this.increaseStatement = session.prepare(increaseStatement().build());
+        this.decreaseStatement = session.prepare(decreaseStatement().build());
+        this.getQuotaCurrentValueStatement = session.prepare(getQuotaCurrentValueStatement().build());
+        this.getQuotasByComponentStatement = session.prepare(getQuotasByComponentStatement().build());
+        this.deleteQuotaCurrentValueStatement = session.prepare(deleteQuotaCurrentValueStatement().build());
+    }
+
+    public Mono<Void> increase(QuotaCurrentValue.Key quotaKey, long amount) {
+        return queryExecutor.executeVoid(increaseStatement.bind()
+            .setString(QUOTA_COMPONENT, quotaKey.getQuotaComponent().getValue())
+            .setString(IDENTIFIER, quotaKey.getIdentifier())
+            .setString(QUOTA_TYPE, quotaKey.getQuotaType().getValue())
+            .setLong(CURRENT_VALUE, amount))
+            .onErrorResume(ex -> {
+                LOGGER.warn("Failure when increasing {} {} quota for {}. Quota current value is thus not updated and needs recomputation",
+                    quotaKey.getQuotaComponent().getValue(), quotaKey.getQuotaType().getValue(), quotaKey.getIdentifier(), ex);
+                return Mono.empty();
+            });
+    }
+
+    public Mono<Void> decrease(QuotaCurrentValue.Key quotaKey, long amount) {
+        return queryExecutor.executeVoid(decreaseStatement.bind()
+            .setString(QUOTA_COMPONENT, quotaKey.getQuotaComponent().getValue())
+            .setString(IDENTIFIER, quotaKey.getIdentifier())
+            .setString(QUOTA_TYPE, quotaKey.getQuotaType().getValue())
+            .setLong(CURRENT_VALUE, amount))
+            .onErrorResume(ex -> {
+                LOGGER.warn("Failure when decreasing {} {} quota for {}. Quota current value is thus not updated and needs recomputation",
+                    quotaKey.getQuotaComponent().getValue(), quotaKey.getQuotaType().getValue(), quotaKey.getIdentifier(), ex);
+                return Mono.empty();
+            });
+    }
+
+    public Mono<QuotaCurrentValue> getQuotaCurrentValue(QuotaCurrentValue.Key quotaKey) {
+        return queryExecutor.executeSingleRow(getQuotaCurrentValueStatement.bind()
+            .setString(QUOTA_COMPONENT, quotaKey.getQuotaComponent().getValue())
+            .setString(IDENTIFIER, quotaKey.getIdentifier())
+            .setString(QUOTA_TYPE, quotaKey.getQuotaType().getValue()))
+            .map(row -> convertRowToModel(row));
+    }
+
+    public Mono<Void> deleteQuotaCurrentValue(QuotaCurrentValue.Key quotaKey) {
+        return queryExecutor.executeVoid(deleteQuotaCurrentValueStatement.bind()
+            .setString(QUOTA_COMPONENT, quotaKey.getQuotaComponent().getValue())
+            .setString(IDENTIFIER, quotaKey.getIdentifier())
+            .setString(QUOTA_TYPE, quotaKey.getQuotaType().getValue()));
+    }
+
+    public Flux<QuotaCurrentValue> getQuotasByComponent(QuotaComponent quotaComponent, String identifier) {
+        return queryExecutor.executeRows(getQuotasByComponentStatement.bind()
+                .setString(QUOTA_COMPONENT, quotaComponent.getValue())
+                .setString(IDENTIFIER, identifier))
+            .map(row -> convertRowToModel(row));
+    }
+
+    private Update increaseStatement() {
+        return update(TABLE_NAME)
+            .increment(CURRENT_VALUE, bindMarker(CURRENT_VALUE))
+            .where(column(IDENTIFIER).isEqualTo(bindMarker(IDENTIFIER)),
+                column(QUOTA_COMPONENT).isEqualTo(bindMarker(QUOTA_COMPONENT)),
+                column(QUOTA_TYPE).isEqualTo(bindMarker(QUOTA_TYPE)));
+    }
+
+    private Update decreaseStatement() {
+        return update(TABLE_NAME)
+            .decrement(CURRENT_VALUE, bindMarker(CURRENT_VALUE))
+            .where(column(IDENTIFIER).isEqualTo(bindMarker(IDENTIFIER)),
+                column(QUOTA_COMPONENT).isEqualTo(bindMarker(QUOTA_COMPONENT)),
+                column(QUOTA_TYPE).isEqualTo(bindMarker(QUOTA_TYPE)));
+    }
+
+    private Select getQuotaCurrentValueStatement() {
+        return selectFrom(TABLE_NAME)
+            .all()
+            .where(column(IDENTIFIER).isEqualTo(bindMarker(IDENTIFIER)),
+                column(QUOTA_COMPONENT).isEqualTo(bindMarker(QUOTA_COMPONENT)),
+                column(QUOTA_TYPE).isEqualTo(bindMarker(QUOTA_TYPE)));
+    }
+
+    private Select getQuotasByComponentStatement() {
+        return selectFrom(TABLE_NAME)
+            .all()
+            .where(column(IDENTIFIER).isEqualTo(bindMarker(IDENTIFIER)),
+                column(QUOTA_COMPONENT).isEqualTo(bindMarker(QUOTA_COMPONENT)));
+    }
+
+    private Delete deleteQuotaCurrentValueStatement() {
+        return deleteFrom(TABLE_NAME)
+            .where(column(IDENTIFIER).isEqualTo(bindMarker(IDENTIFIER)),
+                column(QUOTA_COMPONENT).isEqualTo(bindMarker(QUOTA_COMPONENT)),
+                column(QUOTA_TYPE).isEqualTo(bindMarker(QUOTA_TYPE)));
+    }
+
+    private QuotaCurrentValue convertRowToModel(Row row) {
+        return QuotaCurrentValue.builder().quotaComponent(QuotaComponent.of(row.get(QUOTA_COMPONENT, String.class)))
+            .identifier(row.get(IDENTIFIER, String.class))
+            .quotaType(QuotaType.of(row.get(QUOTA_TYPE, String.class)))
+            .currentValue(row.get(CURRENT_VALUE, Long.class)).build();
+    }
+
+}

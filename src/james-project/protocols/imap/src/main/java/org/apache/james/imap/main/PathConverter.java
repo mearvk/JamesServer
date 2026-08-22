@@ -1,0 +1,260 @@
+/****************************************************************
+ * Licensed to the Apache Software Foundation (ASF) under one   *
+ * or more contributor license agreements.  See the NOTICE file *
+ * distributed with this work for additional information        *
+ * regarding copyright ownership.  The ASF licenses this file   *
+ * to you under the Apache License, Version 2.0 (the            *
+ * "License"); you may not use this file except in compliance   *
+ * with the License.  You may obtain a copy of the License at   *
+ *                                                              *
+ *   http://www.apache.org/licenses/LICENSE-2.0                 *
+ *                                                              *
+ * Unless required by applicable law or agreed to in writing,   *
+ * software distributed under the License is distributed on an  *
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
+ * KIND, either express or implied.  See the License for the    *
+ * specific language governing permissions and limitations      *
+ * under the License.                                           *
+ ****************************************************************/
+
+package org.apache.james.imap.main;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.apache.james.core.Domain;
+import org.apache.james.core.Username;
+import org.apache.james.imap.api.display.ModifiedUtf7;
+import org.apache.james.imap.api.process.ImapSession;
+import org.apache.james.mailbox.MailboxSession;
+import org.apache.james.mailbox.model.MailboxConstants;
+import org.apache.james.mailbox.model.MailboxPath;
+import org.apache.james.mailbox.model.search.MailboxQuery;
+import org.apache.james.mailbox.model.search.PrefixedRegex;
+import org.apache.james.mailbox.model.search.Wildcard;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
+import com.google.common.escape.Escaper;
+import com.google.common.escape.Escapers;
+
+public interface PathConverter {
+    interface Factory {
+        PathConverter.Factory DEFAULT = new PathConverter.Factory.Default();
+
+        class Default implements Factory {
+            public PathConverter forSession(ImapSession session) {
+                return new PathConverter.Default(session.getMailboxSession());
+            }
+
+            public PathConverter forSession(MailboxSession session) {
+                return new PathConverter.Default(session);
+            }
+        }
+
+        PathConverter forSession(ImapSession session);
+
+        PathConverter forSession(MailboxSession session);
+    }
+
+    class Default implements PathConverter {
+        private static final int NAMESPACE = 0;
+        private static final int USER = 1;
+
+        private final MailboxSession mailboxSession;
+        private final Escaper usernameEscaper;
+
+        private Default(MailboxSession mailboxSession) {
+            this.mailboxSession = mailboxSession;
+            this.usernameEscaper = Escapers.builder()
+                    .addEscape(mailboxSession.getPathDelimiter(), "__")
+                    .addEscape('_', "_-")
+                    .build();
+        }
+
+        public MailboxPath buildFullPath(String mailboxName) {
+            if (Strings.isNullOrEmpty(mailboxName)) {
+                return buildRelativePath("");
+            }
+            if (isAbsolute(mailboxName)) {
+                return buildAbsolutePath(mailboxName);
+            } else {
+                return buildRelativePath(mailboxName);
+            }
+        }
+
+        private boolean isAbsolute(String mailboxName) {
+            Preconditions.checkArgument(!Strings.isNullOrEmpty(mailboxName));
+            return mailboxName.charAt(0) == MailboxConstants.NAMESPACE_PREFIX_CHAR;
+        }
+
+        private MailboxPath buildRelativePath(String mailboxName) {
+            return new MailboxPath(MailboxConstants.USER_NAMESPACE, mailboxSession.getUser(), sanitizeMailboxName(mailboxName));
+        }
+
+        private MailboxPath buildAbsolutePath(String absolutePath) {
+            return asMailboxPath(Splitter.on(mailboxSession.getPathDelimiter())
+                .omitEmptyStrings()
+                .splitToList(absolutePath), mailboxSession);
+        }
+
+        private MailboxPath asMailboxPath(List<String> mailboxPathParts, MailboxSession session) {
+            String namespace = mailboxPathParts.get(NAMESPACE);
+            if (namespace.equalsIgnoreCase("#private")) {
+                String mailboxName = Joiner.on(session.getPathDelimiter()).join(Iterables.skip(mailboxPathParts, 1));
+                return new MailboxPath(MailboxConstants.USER_NAMESPACE, session.getUser(), sanitizeMailboxName(mailboxName));
+            } else if (namespace.equalsIgnoreCase("#user")) {
+                if (mailboxPathParts.size() == 1) {
+                    // May be generated by some List commands.
+                    String mailboxName = Joiner.on(session.getPathDelimiter()).join(Iterables.skip(mailboxPathParts, 1));
+                    return new MailboxPath(MailboxConstants.USER_NAMESPACE, null, sanitizeMailboxName(mailboxName));
+                }
+                String username = mailboxPathParts.get(USER);
+                String unescapedUsername = username.replace("__", String.valueOf(MailboxConstants.FOLDER_DELIMITER))
+                    .replace("_-", "_");
+                Username user = Username.from(unescapedUsername, session.getUser().getDomainPart().map(Domain::asString));
+                String mailboxName = Joiner.on(session.getPathDelimiter()).join(Iterables.skip(mailboxPathParts, 2));
+                return new MailboxPath(MailboxConstants.USER_NAMESPACE, user, sanitizeMailboxName(mailboxName));
+
+            } else {
+                throw new DeniedAccessOnSharedMailboxException();
+            }
+        }
+
+        private String sanitizeMailboxName(String mailboxName) {
+            // use uppercase for INBOX
+            // See IMAP-349
+            if (mailboxName.equalsIgnoreCase(MailboxConstants.INBOX)) {
+                return MailboxConstants.INBOX;
+            }
+            return mailboxName;
+        }
+
+        /**
+         * Joins the elements of a mailboxPath together and returns them as a string
+         */
+        private String joinMailboxPath(MailboxPath mailboxPath, MailboxSession session) {
+            StringBuilder sb = new StringBuilder();
+            if (mailboxPath.getNamespace() != null && !mailboxPath.getNamespace().isEmpty()) {
+                if (mailboxPath.getNamespace().equalsIgnoreCase(MailboxConstants.USER_NAMESPACE)
+                    && !mailboxPath.belongsTo(session)) {
+                    sb.append("#user");
+                } else {
+                    sb.append(mailboxPath.getNamespace());
+                }
+            }
+            if (mailboxPath.getUser() != null) {
+                if (!mailboxPath.belongsTo(session)) {
+                    if (!sb.isEmpty()) {
+                        sb.append(session.getPathDelimiter());
+                    }
+
+                    sb.append(usernameEscaper.escape(mailboxPath.getUser().getLocalPart()));
+                }
+            }
+            if (mailboxPath.getName() != null && !mailboxPath.getName().isEmpty()) {
+                if (!sb.isEmpty()) {
+                    sb.append(session.getPathDelimiter());
+                }
+                sb.append(mailboxPath.getName());
+            }
+            return sb.toString();
+        }
+
+        public Optional<String> mailboxName(boolean relative, MailboxPath path, MailboxSession session) {
+            if (relative && path.belongsTo(session)) {
+                return Optional.of(path.getName());
+            } else {
+                return Optional.of(joinMailboxPath(path, session));
+            }
+        }
+
+        public MailboxQuery mailboxQuery(String finalReferencename, String mailboxName, ImapSession session) {
+            MailboxSession mailboxSession = session.getMailboxSession();
+            String decodedMailboxName = ModifiedUtf7.decodeModifiedUTF7(mailboxName);
+            if (finalReferencename.isEmpty()) {
+                if (mailboxName.equals("*")) {
+                    return MailboxQuery.builder()
+                        .matchesAllMailboxNames()
+                        .build();
+                }
+                int delimiterPosition = mailboxName.indexOf(mailboxSession.getPathDelimiter());
+                if (mailboxName.startsWith("#") && delimiterPosition > 0 && delimiterPosition + 1 < mailboxName.length()) {
+                    return mailboxQuery(mailboxName.substring(0, delimiterPosition),
+                        mailboxName.substring(delimiterPosition + 1),
+                        session);
+                }
+                return MailboxQuery.builder()
+                    .expression(new PrefixedRegex(
+                        "",
+                        decodedMailboxName,
+                        mailboxSession.getPathDelimiter()))
+                    .build();
+            }
+
+            MailboxPath basePath = computeBasePath(session, finalReferencename);
+            if (basePath.getNamespace().equals(MailboxConstants.USER_NAMESPACE)
+                && basePath.getUser() == null) {
+
+                int separatorPosition = decodedMailboxName.indexOf(mailboxSession.getPathDelimiter());
+                if (separatorPosition >= 0) {
+                    // interpret first part as the user
+                    Username username = Username.of(decodedMailboxName.substring(0, separatorPosition));
+                    return MailboxQuery.builder()
+                        .namespace(MailboxConstants.USER_NAMESPACE)
+                        .username(username)
+                        .expression(new PrefixedRegex(
+                            basePath.getName(),
+                            decodedMailboxName.substring(separatorPosition + 1),
+                            mailboxSession.getPathDelimiter()))
+                        .build();
+                }
+
+                return MailboxQuery.builder()
+                    .namespace(MailboxConstants.USER_NAMESPACE)
+                    .expression(new PrefixedRegex(
+                        basePath.getName(),
+                        decodedMailboxName,
+                        mailboxSession.getPathDelimiter()))
+                    .build();
+            }
+            if (basePath.getNamespace().equals(MailboxConstants.USER_NAMESPACE)
+                && basePath.getUser().equals(mailboxSession.getUser())
+                && basePath.getName().isEmpty()
+                && mailboxName.equals("*")) {
+
+                return MailboxQuery.builder()
+                    .userAndNamespaceFrom(basePath)
+                    .expression(Wildcard.INSTANCE)
+                    .build();
+            }
+
+            return MailboxQuery.builder()
+                .userAndNamespaceFrom(basePath)
+                .expression(new PrefixedRegex(
+                    basePath.getName(),
+                    decodedMailboxName,
+                    mailboxSession.getPathDelimiter()))
+                .build();
+        }
+
+        private MailboxPath computeBasePath(ImapSession session, String finalReferencename) {
+            String decodedName = ModifiedUtf7.decodeModifiedUTF7(finalReferencename);
+            boolean isRelative = !finalReferencename.startsWith("#");
+            if (isRelative) {
+                return MailboxPath.forUser(session.getUserName(), decodedName);
+            } else {
+                return buildFullPath(decodedName);
+            }
+        }
+    }
+
+    MailboxPath buildFullPath(String mailboxName);
+
+    Optional<String> mailboxName(boolean relative, MailboxPath path, MailboxSession session);
+
+    MailboxQuery mailboxQuery(String finalReferencename, String mailboxName, ImapSession session);
+}

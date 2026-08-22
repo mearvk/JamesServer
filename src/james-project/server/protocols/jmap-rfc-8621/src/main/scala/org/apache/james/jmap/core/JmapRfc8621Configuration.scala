@@ -1,0 +1,147 @@
+/****************************************************************
+ * Licensed to the Apache Software Foundation (ASF) under one   *
+ * or more contributor license agreements.  See the NOTICE file *
+ * distributed with this work for additional information        *
+ * regarding copyright ownership.  The ASF licenses this file   *
+ * to you under the Apache License, Version 2.0 (the            *
+ * "License"); you may not use this file except in compliance   *
+ * with the License.  You may obtain a copy of the License at   *
+ *                                                              *
+ * http://www.apache.org/licenses/LICENSE-2.0                   *
+ *                                                              *
+ * Unless required by applicable law or agreed to in writing,   *
+ * software distributed under the License is distributed on an  *
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
+ * KIND, either express or implied.  See the License for the    *
+ * specific language governing permissions and limitations      *
+ * under the License.                                           *
+ ****************************************************************/
+
+package org.apache.james.jmap.core
+
+import java.net.URI
+import java.time.temporal.ChronoUnit
+import java.util.Optional
+
+import com.google.common.base.Preconditions
+import com.google.common.collect.ImmutableList
+import org.apache.commons.configuration2.Configuration
+import org.apache.james.jmap.core.CapabilityIdentifier.CapabilityIdentifier
+import org.apache.james.jmap.core.JmapRfc8621Configuration.{JMAP_EMAIL_GET_FULL_MAX_SIZE_DEFAULT, JMAP_MAX_OBJECT_IN_GET, JMAP_MAX_OBJECT_IN_SET, JMAP_UPLOAD_QUOTA_LIMIT_DEFAULT, MAX_SIZE_ATTACHMENTS_PER_MAIL_DEFAULT, UPLOAD_LIMIT_DEFAULT}
+import org.apache.james.jmap.pushsubscription.PushClientConfiguration
+import org.apache.james.util.{DurationParser, Size}
+
+import scala.concurrent.duration.Duration
+import scala.jdk.CollectionConverters._
+import scala.jdk.DurationConverters._
+import scala.jdk.OptionConverters._
+
+object JmapConfigProperties {
+  val UPLOAD_LIMIT_PROPERTY: String = "upload.max.size"
+  val MAX_SIZE_ATTACHMENTS_PER_MAIL_PROPERTY: String = "max.size.attachments.per.mail"
+  val URL_PREFIX_PROPERTY: String = "url.prefix"
+  val WEBSOCKET_URL_PREFIX_PROPERTY: String = "websocket.url.prefix"
+  val WEBSOCKET_PING_INTERVAL_PROPERTY: String = "websocket.ping.interval"
+  val WEB_PUSH_MAX_TIMEOUT_SECONDS_PROPERTY: String = "webpush.maxTimeoutSeconds"
+  val WEB_PUSH_MAX_CONNECTIONS_PROPERTY: String = "webpush.maxConnections"
+  val WEB_PUSH_PREVENT_SERVER_SIDE_REQUEST_FORGERY: String = "webpush.prevent.server.side.request.forgery"
+  val DYNAMIC_JMAP_PREFIX_RESOLUTION_ENABLED_PROPERTY: String = "dynamic.jmap.prefix.resolution.enabled"
+  val DELAY_SENDS_ENABLED: String = "delay.sends.enabled"
+  val AUTHENTICATION_STRATEGIES: String = "authentication.strategy.rfc8621"
+  val DISABLED_CAPABILITIES: String = "disabled.capabilities"
+  val JMAP_UPLOAD_QUOTA_LIMIT_PROPERTY: String = "upload.quota.limit"
+  val JMAP_EMAIL_GET_FULL_MAX_SIZE_PROPERTY: String = "email.get.full.max.size"
+  val JMAP_GET_MAX_SIZE_PROPERTY: String = "get.max.size"
+  val JMAP_SET_MAX_SIZE_PROPERTY: String = "set.max.size"
+}
+
+object JmapRfc8621Configuration {
+  import JmapConfigProperties._
+  val URL_PREFIX_DEFAULT: String = "http://localhost"
+  val WEBSOCKET_URL_PREFIX_DEFAULT: String = "ws://localhost"
+  val UPLOAD_LIMIT_DEFAULT: MaxSizeUpload = MaxSizeUpload.of(Size.of(30L, Size.Unit.M)).get
+  val MAX_SIZE_ATTACHMENTS_PER_MAIL_DEFAULT: MaxSizeAttachmentsPerEmail = MaxSizeAttachmentsPerEmail.of(Size.of(20_000_000L, Size.Unit.B)).get
+  val JMAP_UPLOAD_QUOTA_LIMIT_DEFAULT: JmapUploadQuotaLimit = JmapUploadQuotaLimit.of(Size.of(200L, Size.Unit.M)).get
+  val JMAP_EMAIL_GET_FULL_MAX_SIZE_DEFAULT: JmapEmailGetFullMaxSize = JmapEmailGetFullMaxSize(UnsignedInt.liftOrThrow(5))
+  val JMAP_MAX_OBJECT_IN_GET: MaxObjectsInGet = MaxObjectsInGet(UnsignedInt.liftOrThrow(500))
+  val JMAP_MAX_OBJECT_IN_SET: MaxObjectsInSet = MaxObjectsInSet(UnsignedInt.liftOrThrow(500))
+
+  val LOCALHOST_CONFIGURATION: JmapRfc8621Configuration = JmapRfc8621Configuration(
+    urlPrefixString = URL_PREFIX_DEFAULT,
+    websocketPrefixString = WEBSOCKET_URL_PREFIX_DEFAULT,
+    maxUploadSize = UPLOAD_LIMIT_DEFAULT)
+
+  def from(configuration: Configuration): JmapRfc8621Configuration = {
+    JmapRfc8621Configuration(
+      urlPrefixString = Option(configuration.getString(URL_PREFIX_PROPERTY)).getOrElse(URL_PREFIX_DEFAULT),
+      websocketPrefixString = Option(configuration.getString(WEBSOCKET_URL_PREFIX_PROPERTY)).getOrElse(WEBSOCKET_URL_PREFIX_DEFAULT),
+      websocketPingInterval = Option(configuration.getString(WEBSOCKET_PING_INTERVAL_PROPERTY))
+        .map(DurationParser.parse(_, ChronoUnit.SECONDS))
+        .map(duration => {
+          Preconditions.checkArgument(!duration.isZero && !duration.isNegative, s"`$WEBSOCKET_PING_INTERVAL_PROPERTY` must be positive".asInstanceOf[Object])
+          duration.toScala
+        }),
+      dynamicJmapPrefixResolutionEnabled = configuration.getBoolean(DYNAMIC_JMAP_PREFIX_RESOLUTION_ENABLED_PROPERTY, false),
+      supportsDelaySends = configuration.getBoolean(DELAY_SENDS_ENABLED, false),
+      maxUploadSize = Option(configuration.getString(UPLOAD_LIMIT_PROPERTY, null))
+        .map(Size.parse)
+        .map(MaxSizeUpload.of(_).get)
+        .getOrElse(UPLOAD_LIMIT_DEFAULT),
+      maxSizeAttachmentsPerEmail = Option(configuration.getString(MAX_SIZE_ATTACHMENTS_PER_MAIL_PROPERTY, null))
+        .map(Size.parse)
+        .map(MaxSizeAttachmentsPerEmail.of(_).get)
+        .getOrElse(MAX_SIZE_ATTACHMENTS_PER_MAIL_DEFAULT),
+      jmapUploadQuotaLimit = Option(configuration.getString(JMAP_UPLOAD_QUOTA_LIMIT_PROPERTY, null))
+        .map(Size.parse)
+        .map(JmapUploadQuotaLimit.of(_).get)
+        .getOrElse(JMAP_UPLOAD_QUOTA_LIMIT_DEFAULT),
+      jmapEmailGetFullMaxSize = Option(configuration.getLong(JMAP_EMAIL_GET_FULL_MAX_SIZE_PROPERTY, null))
+        .map(value => JmapEmailGetFullMaxSize(UnsignedInt.liftOrThrow(value)))
+        .getOrElse(JMAP_EMAIL_GET_FULL_MAX_SIZE_DEFAULT),
+      maxObjectsInGet = Option(configuration.getLong(JMAP_GET_MAX_SIZE_PROPERTY, null))
+        .map(value => MaxObjectsInGet(UnsignedInt.liftOrThrow(value)))
+        .getOrElse(JMAP_MAX_OBJECT_IN_GET),
+      maxObjectsInSet = Option(configuration.getLong(JMAP_SET_MAX_SIZE_PROPERTY, null))
+        .map(value => MaxObjectsInSet(UnsignedInt.liftOrThrow(value)))
+        .getOrElse(JMAP_MAX_OBJECT_IN_SET),
+      maxTimeoutSeconds = Optional.ofNullable(configuration.getInteger(WEB_PUSH_MAX_TIMEOUT_SECONDS_PROPERTY, null)).map(Integer2int).toScala,
+      maxConnections = Optional.ofNullable(configuration.getInteger(WEB_PUSH_MAX_CONNECTIONS_PROPERTY, null)).map(Integer2int).toScala,
+      preventServerSideRequestForgery = Optional.ofNullable(configuration.getBoolean(WEB_PUSH_PREVENT_SERVER_SIDE_REQUEST_FORGERY, null)).orElse(true),
+      authenticationStrategies = Optional.ofNullable(configuration.getList(classOf[String], AUTHENTICATION_STRATEGIES, null)).toScala,
+      disabledCapabilities = Optional.ofNullable(configuration.getList(classOf[String], DISABLED_CAPABILITIES, null))
+        .orElse(ImmutableList.of())
+        .asScala
+        .flatMap(s => CapabilityIdentifier.parse(s).toOption)
+        .toSet)
+  }
+}
+
+case class JmapRfc8621Configuration(urlPrefixString: String,
+                                    websocketPrefixString: String,
+                                    websocketPingInterval: Option[Duration] = None,
+                                    dynamicJmapPrefixResolutionEnabled: Boolean = false,
+                                    supportsDelaySends: Boolean = false,
+                                    maxUploadSize: MaxSizeUpload = UPLOAD_LIMIT_DEFAULT,
+                                    maxSizeAttachmentsPerEmail: MaxSizeAttachmentsPerEmail = MAX_SIZE_ATTACHMENTS_PER_MAIL_DEFAULT,
+                                    jmapUploadQuotaLimit: JmapUploadQuotaLimit = JMAP_UPLOAD_QUOTA_LIMIT_DEFAULT,
+                                    jmapEmailGetFullMaxSize: JmapEmailGetFullMaxSize = JMAP_EMAIL_GET_FULL_MAX_SIZE_DEFAULT,
+                                    maxObjectsInGet: MaxObjectsInGet = JMAP_MAX_OBJECT_IN_GET,
+                                    maxObjectsInSet: MaxObjectsInSet = JMAP_MAX_OBJECT_IN_SET,
+                                    maxTimeoutSeconds: Option[Int] = None,
+                                    maxConnections: Option[Int] = None,
+                                    authenticationStrategies: Option[java.util.List[String]] = None,
+                                    preventServerSideRequestForgery: Boolean = true,
+                                    disabledCapabilities: Set[CapabilityIdentifier] = Set()) {
+
+  val webPushConfiguration: PushClientConfiguration = PushClientConfiguration(
+    maxTimeoutSeconds = maxTimeoutSeconds,
+    maxConnections = maxConnections,
+    preventServerSideRequestForgery = preventServerSideRequestForgery)
+
+  def urlPrefixes(): UrlPrefixes = UrlPrefixes(new URI(urlPrefixString), new URI(websocketPrefixString))
+
+  def getAuthenticationStrategiesAsJava(): Optional[java.util.List[String]] = authenticationStrategies.toJava
+
+  def withAuthenticationStrategies(list: Optional[java.util.List[String]]): JmapRfc8621Configuration =
+    this.copy(authenticationStrategies = list.toScala)
+}

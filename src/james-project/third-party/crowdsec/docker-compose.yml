@@ -1,0 +1,49 @@
+version: '3'
+
+services:
+
+  james:
+    image: apache/james:memory-crowdsec
+    container_name: james
+    hostname: james.local
+    command:
+      - --generate-keystore
+    volumes:
+      - ./logback-jackson-0.1.5.jar:/root/libs/logback-jackson-0.1.5.jar
+      - ./logback-json-core-0.1.5.jar:/root/libs/logback-json-core-0.1.5.jar
+      - ./sample-configuration/logback.xml:/root/conf/logback.xml
+      - ./target/apache-james-crowdsec-jar-with-dependencies.jar:/root/extensions-jars/james-server-crowdsec.jar
+      - ./sample-configuration/extensions.properties:/root/conf/extensions.properties
+      - ./sample-configuration/smtpserver.xml:/root/conf/smtpserver.xml
+      - ./sample-configuration/crowdsec.properties:/root/conf/crowdsec.properties
+      - ./sample-configuration/imapserver.xml:/root/conf/imapserver.xml
+      - ./sample-configuration/pop3server.xml:/root/conf/pop3server.xml
+    networks:
+      - james
+    ports:
+      - "80:80"
+      - "25:25"
+      - "110:110"
+      - "143:143"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+      - "8000:8000"
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.5.4
+    container_name: crowdsec
+    restart: always
+    volumes:
+      - ./sample-configuration/acquis.yaml:/etc/crowdsec/acquis.yaml
+      - ./sample-configuration/parsers/syslog-logs.yaml:/etc/crowdsec/parsers/s00-raw/syslog-logs.yaml
+      - ./sample-configuration/parsers/james-auth.yaml:/etc/crowdsec/parsers/s01-parse/james-auth.yaml
+      - ./sample-configuration/scenarios:/etc/crowdsec/scenarios
+      - ./sample-configuration/collections:/etc/crowdsec/collections
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+      - "6060:6060"
+    networks:
+      - james
+networks:
+  james:
