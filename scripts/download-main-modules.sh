@@ -1,5 +1,4 @@
-```bash
-#!/usr/bin/env bash
+!/usr/bin/env bash
 #
 # fetch-missing-james-modules.sh
 #
