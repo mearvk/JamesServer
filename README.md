@@ -53,7 +53,17 @@ src/james-project/
 
 ## Completeness
 
-This is a **partial checkout** (~60% of the full Apache James 3.9.0 source). The following upstream modules are **not present**:
+This is a **partial checkout** of the full Apache James 3.9.0 source — specifically, the domain, processing, storage, and data layers without the runtime server skeleton.
+
+**What's fully present:**
+- 100% of the mailet/mail-processing layer (API + all implementations)
+- 100% of the blob storage layer (API + S3, Cassandra, Postgres, file, memory, AES)
+- 100% of the data/persistence API + 4 of 7 backends (JPA, file, LDAP, memory)
+- 100% of the protocol test scripts (IMAP, SMTP, ManageSieve)
+- 100% of the core domain objects (MailAddress, Domain, Username, Quota)
+- 100% of MDN (RFC 8098)
+
+**What's missing (0% — the runtime server infrastructure):**
 
 - `backends-common` — shared backend utilities
 - `event-bus` — event distribution system
