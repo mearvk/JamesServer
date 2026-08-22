@@ -1,0 +1,77 @@
+/****************************************************************
+ * Licensed to the Apache Software Foundation (ASF) under one   *
+ * or more contributor license agreements.  See the NOTICE file *
+ * distributed with this work for additional information        *
+ * regarding copyright ownership.  The ASF licenses this file   *
+ * to you under the Apache License, Version 2.0 (the            *
+ * "License"); you may not use this file except in compliance   *
+ * with the License.  You may obtain a copy of the License at   *
+ *                                                              *
+ *   http://www.apache.org/licenses/LICENSE-2.0                 *
+ *                                                              *
+ * Unless required by applicable law or agreed to in writing,   *
+ * software distributed under the License is distributed on an  *
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
+ * KIND, either express or implied.  See the License for the    *
+ * specific language governing permissions and limitations      *
+ * under the License.                                           *
+ ****************************************************************/
+
+package com.mearvk.james.blob.cassandra;
+
+import static org.mockito.Mockito.spy;
+
+import com.mearvk.james.backends.cassandra.CassandraCluster;
+import com.mearvk.james.backends.cassandra.CassandraClusterExtension;
+import com.mearvk.james.backends.cassandra.init.configuration.CassandraConfiguration;
+import com.mearvk.james.blob.api.BlobId;
+import com.mearvk.james.blob.api.BlobStore;
+import com.mearvk.james.blob.api.BucketName;
+import com.mearvk.james.blob.api.DeleteBlobStoreContract;
+import com.mearvk.james.blob.api.MetricableBlobStore;
+import com.mearvk.james.blob.api.PlainBlobId;
+import com.mearvk.james.metrics.api.MetricFactory;
+import com.mearvk.james.server.blob.deduplication.BlobStoreFactory;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+public class CassandraPassTroughBlobStoreTest implements DeleteBlobStoreContract, CassandraBlobStoreContract {
+    @RegisterExtension
+    static CassandraClusterExtension cassandraCluster = new CassandraClusterExtension(CassandraBlobDataDefinition.MODULE);
+
+    private BlobStore testee;
+    private CassandraDefaultBucketDAO defaultBucketDAO;
+
+    @BeforeEach
+    void setUp(CassandraCluster cassandra) {
+        PlainBlobId.Factory blobIdFactory = new PlainBlobId.Factory();
+        CassandraBucketDAO bucketDAO = new CassandraBucketDAO(blobIdFactory, cassandra.getConf());
+        defaultBucketDAO = spy(new CassandraDefaultBucketDAO(cassandra.getConf(), blobIdFactory));
+        CassandraConfiguration cassandraConfiguration = CassandraConfiguration.builder()
+            .blobPartSize(CHUNK_SIZE)
+            .build();
+        MetricFactory metricFactory = metricsTestExtension.getMetricFactory();
+        testee = new MetricableBlobStore(
+            metricFactory,
+            BlobStoreFactory.builder()
+                .blobStoreDAO(new CassandraBlobStoreDAO(defaultBucketDAO, bucketDAO, cassandraConfiguration, BucketName.DEFAULT, metricFactory))
+                .blobIdFactory(blobIdFactory)
+                .defaultBucketName()
+                .passthrough());
+    }
+
+    @Override
+    public BlobStore testee() {
+        return testee;
+    }
+
+    @Override
+    public BlobId.Factory blobIdFactory() {
+        return new PlainBlobId.Factory();
+    }
+
+    @Override
+    public CassandraDefaultBucketDAO defaultBucketDAO() {
+        return defaultBucketDAO;
+    }
+}

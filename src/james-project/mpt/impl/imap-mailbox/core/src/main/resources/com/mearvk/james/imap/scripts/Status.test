@@ -1,0 +1,151 @@
+################################################################
+# Licensed to the Apache Software Foundation (ASF) under one   #
+# or more contributor license agreements.  See the NOTICE file #
+# distributed with this work for additional information        #
+# regarding copyright ownership.  The ASF licenses this file   #
+# to you under the Apache License, Version 2.0 (the            #
+# "License"); you may not use this file except in compliance   #
+# with the License.  You may obtain a copy of the License at   #
+#                                                              #
+#   http://www.apache.org/licenses/LICENSE-2.0                 #
+#                                                              #
+# Unless required by applicable law or agreed to in writing,   #
+# software distributed under the License is distributed on an  #
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       #
+# KIND, either express or implied.  See the License for the    #
+# specific language governing permissions and limitations      #
+# under the License.                                           #
+################################################################
+C: a1 CREATE statustest
+S: a1 OK \[MAILBOXID \(.+\)\] CREATE completed.
+
+# Tests for the STATUS command
+C: a001 STATUS statustest (MESSAGES)
+S: \* STATUS \"statustest\" \(MESSAGES 0\)
+S: a001 OK STATUS completed.
+
+C: a002 STATUS statustest (  MESSAGES  )
+S: \* STATUS \"statustest\" \(MESSAGES 0\)
+S: a002 OK STATUS completed.
+
+C: a003 STATUS statustest (MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)
+S: \* STATUS \"statustest\" \(MESSAGES 0 RECENT 0 UIDNEXT \d+ UIDVALIDITY \d+ UNSEEN 0\)
+S: a003 OK STATUS completed.
+
+C: a004 STATUS statustest (UNSEEN RECENT )
+S: \* STATUS \"statustest\" \(RECENT 0 UNSEEN 0\)
+S: a004 OK STATUS completed.
+
+C: A005 APPEND statustest {254+}
+C: Date: Mon, 7 Feb 1994 21:52:25 -0800 (PST)
+C: From: Fred Foobar <foobar@Blurdybloop.COM>
+C: Subject: Test 01
+C: To: mooch@owatagu.siam.edu
+C: Message-Id: <B27397-0100000@Blurdybloop.COM>
+C: MIME-Version: 1.0
+C: Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+C:
+C: Test 01
+C:
+S: A005 OK (\[.+\] )?APPEND completed.
+
+C: a006 STATUS statustest (UNSEEN RECENT )
+S: \* STATUS \"statustest\" \(RECENT 1 UNSEEN 1\)
+S: a006 OK STATUS completed.
+
+# Make sure that the recent flag isn't unset
+C: a007 STATUS statustest (UNSEEN RECENT )
+S: \* STATUS \"statustest\" \(RECENT 1 UNSEEN 1\)
+S: a007 OK STATUS completed.
+
+C: a008 STATUS statustest (UNSEEN SIZE MESSAGES )
+S: \* STATUS \"statustest\" \(MESSAGES 1 SIZE 254 UNSEEN 1\)
+S: a008 OK STATUS completed.
+
+C: A009 APPEND statustest {254+}
+C: Date: Mon, 7 Feb 1994 21:52:25 -0800 (PST)
+C: From: Fred Foobar <foobar@Blurdybloop.COM>
+C: Subject: Test 01
+C: To: mooch@owatagu.siam.edu
+C: Message-Id: <B27397-0100000@Blurdybloop.COM>
+C: MIME-Version: 1.0
+C: Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+C:
+C: Test 01
+C:
+S: A009 OK (\[.+\] )?APPEND completed.
+
+C: A010 APPEND statustest {254+}
+C: Date: Mon, 7 Feb 1994 21:52:25 -0800 (PST)
+C: From: Fred Foobar <foobar@Blurdybloop.COM>
+C: Subject: Test 01
+C: To: mooch@owatagu.siam.edu
+C: Message-Id: <B27397-0100000@Blurdybloop.COM>
+C: MIME-Version: 1.0
+C: Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+C:
+C: Test 01
+C:
+S: A010 OK (\[.+\] )?APPEND completed.
+
+C: A011 APPEND statustest {254+}
+C: Date: Mon, 7 Feb 1994 21:52:25 -0800 (PST)
+C: From: Fred Foobar <foobar@Blurdybloop.COM>
+C: Subject: Test 01
+C: To: mooch@owatagu.siam.edu
+C: Message-Id: <B27397-0100000@Blurdybloop.COM>
+C: MIME-Version: 1.0
+C: Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+C:
+C: Test 01
+C:
+S: A011 OK (\[.+\] )?APPEND completed.
+
+C: 10 SELECT statustest
+S: \* OK \[MAILBOXID \(.+\)\] Ok
+S: \* FLAGS \(\\Answered \\Deleted \\Draft \\Flagged \\Seen\)
+S: \* 4 EXISTS
+S: \* 4 RECENT
+S: \* OK \[UIDVALIDITY \d+\].*
+S: \* OK \[UNSEEN 1\] .*
+S: \* OK \[PERMANENTFLAGS \(\\Answered \\Deleted \\Draft \\Flagged \\\Seen( \\\*)?\)\].*
+S: \* OK \[HIGHESTMODSEQ \d+\].*
+S: \* OK \[UIDNEXT 5\].*
+S: 10 OK \[READ-WRITE\] SELECT completed.
+
+C: A012 STORE 1:2 FLAGS (\Deleted)
+S: \* 1 FETCH \(FLAGS \(\\Deleted \\Recent\)\)
+S: \* 2 FETCH \(FLAGS \(\\Deleted \\Recent\)\)
+S: A012 OK STORE completed.
+
+C: A013 STATUS statustest (UNSEEN SIZE MESSAGES DELETED DELETED-STORAGE)
+S: \* STATUS \"statustest\" \(MESSAGES 4 SIZE 1016 DELETED 2 DELETED-STORAGE 508 UNSEEN 4\)
+S: A013 OK STATUS completed.
+
+C: A013 STATUS notfound (UNSEEN SIZE MESSAGES DELETED DELETED-STORAGE)
+S: A013 NO STATUS failed. Mailbox not found.
+
+C: A014 STATUS statustest (DELETED)
+S: \* STATUS \"statustest\" \(DELETED 2\)
+S: A014 OK STATUS completed.
+
+C: A015 STATUS statustest (DELETED-STORAGE)
+S: \* STATUS \"statustest\" \(DELETED-STORAGE 508\)
+S: A015 OK STATUS completed.
+
+C: a016 STATUS statustest (MAILBOXID)
+S: \* STATUS \"statustest\" \(MAILBOXID \(.+\)\)
+S: a016 OK STATUS completed.
+
+C: a017 LIST "" * RETURN (STATUS (UNSEEN SIZE MESSAGES DELETED DELETED-STORAGE MAILBOXID))
+SUB {
+S: \* LIST \(\\HasNoChildren\) "." "INBOX"
+S: \* STATUS \"INBOX\" \(MESSAGES 0 SIZE 0 DELETED 0 DELETED-STORAGE 0 UNSEEN 0 MAILBOXID \(.+\)\)
+S: \* LIST \(\\HasNoChildren\) "." "statustest"
+S: \* STATUS "statustest" \(MESSAGES 4 SIZE 1016 DELETED 2 DELETED-STORAGE 508 UNSEEN 4 MAILBOXID \(.+\)\)
+}
+S: a017 OK LIST completed.
+
+# Cleanup
+C: a1 DELETE statustest
+S: a1 OK DELETE completed.
