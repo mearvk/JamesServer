@@ -6,7 +6,7 @@
       "captureKind": "trace-entry",
       "traceEntryMessageTemplate": "{{this.class.name}}.{{methodName}}",
       "timerName": "blobstore",
-      "className": "org.apache.james.blob.objectstorage.BlobPutter",
+      "className": "com.mearvk.james.blob.objectstorage.BlobPutter",
       "methodName": "putDirectly",
       "methodParameterTypes": [
         ".."
@@ -16,7 +16,7 @@
       "captureKind": "trace-entry",
       "traceEntryMessageTemplate": "{{this.class.name}}.{{methodName}}",
       "timerName": "blobstore",
-      "className": "org.apache.james.blob.objectstorage.BlobPutter",
+      "className": "com.mearvk.james.blob.objectstorage.BlobPutter",
       "methodName": "putAndComputeId",
       "methodParameterTypes": [
         ".."

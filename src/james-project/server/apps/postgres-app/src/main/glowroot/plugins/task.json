@@ -3,7 +3,7 @@
   "id": "task",
   "instrumentation": [
     {
-      "className": "org.apache.james.task.Task",
+      "className": "com.mearvk.james.task.Task",
       "methodName": "run",
       "methodParameterTypes": [
         ".."

@@ -3,7 +3,7 @@
   "id": "pop3",
   "instrumentation": [
     {
-      "className": "org.apache.james.protocols.pop3.core.AbstractPOP3CommandHandler",
+      "className": "com.mearvk.james.protocols.pop3.core.AbstractPOP3CommandHandler",
       "methodName": "onCommand",
       "methodParameterTypes": [
         ".."

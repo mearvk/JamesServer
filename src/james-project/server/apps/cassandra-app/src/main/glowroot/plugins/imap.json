@@ -3,7 +3,7 @@
   "id": "imap",
   "instrumentation": [
     {
-      "className": "org.apache.james.imap.processor.base.AbstractChainedProcessor",
+      "className": "com.mearvk.james.imap.processor.base.AbstractChainedProcessor",
       "methodName": "doProcess",
       "methodParameterTypes": [
         ".."

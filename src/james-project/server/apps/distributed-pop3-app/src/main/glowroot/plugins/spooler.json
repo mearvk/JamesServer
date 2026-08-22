@@ -3,7 +3,7 @@
   "id": "spooler",
   "instrumentation": [
     {
-      "className": "org.apache.james.mailetcontainer.api.MailProcessor",
+      "className": "com.mearvk.james.mailetcontainer.api.MailProcessor",
       "methodName": "service",
       "methodParameterTypes": [
         ".."
@@ -16,7 +16,7 @@
       "timerName": "mailetProcessor"
     },
     {
-      "className": "org.apache.mailet.Mailet",
+      "className": "com.mearvk.mailet.Mailet",
       "methodName": "service",
       "methodParameterTypes": [
         ".."
@@ -29,7 +29,7 @@
       "timerName": "mailet"
     },
     {
-      "className": "org.apache.mailet.Matcher",
+      "className": "com.mearvk.mailet.Matcher",
       "methodName": "match",
       "methodParameterTypes": [
         ".."

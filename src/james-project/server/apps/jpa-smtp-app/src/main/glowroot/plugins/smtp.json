@@ -3,7 +3,7 @@
   "id": "smtp",
   "instrumentation": [
     {
-      "className": "org.apache.james.protocols.smtp.core.AbstractHookableCmdHandler",
+      "className": "com.mearvk.james.protocols.smtp.core.AbstractHookableCmdHandler",
       "methodName": "onCommand",
       "methodParameterTypes": [
         ".."

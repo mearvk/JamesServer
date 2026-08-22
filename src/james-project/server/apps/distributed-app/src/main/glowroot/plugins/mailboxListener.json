@@ -3,7 +3,7 @@
   "id": "mailboxListener",
   "instrumentation": [
     {
-      "className": "org.apache.james.mailbox.events.MailboxListener",
+      "className": "com.mearvk.james.mailbox.events.MailboxListener",
       "methodName": "event",
       "methodParameterTypes": [
         ".."

@@ -3,7 +3,7 @@
   "id": "jmap",
   "instrumentation": [
     {
-      "className": "org.apache.james.jmap.draft.methods.Method",
+      "className": "com.mearvk.james.jmap.draft.methods.Method",
       "methodName": "processToStream",
       "methodParameterTypes": [
         ".."
