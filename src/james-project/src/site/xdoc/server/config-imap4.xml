@@ -1,0 +1,225 @@
+<?xml version="1.0"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.    
+-->
+<document>
+
+ <properties>
+  <title>Apache James Server 3 - IMAP4 Configuration</title>
+ </properties>
+
+<body>
+
+<section name="IMAP4 Configuration">
+
+      <p>Consult <a href="https://github.com/apache/james-project/blob/master/server/apps/distributed-app/sample-configuration/imapserver.xml">imapserver.xml</a> in GIT to get some examples and hints.</p>
+
+    <p>The IMAP4 service is controlled by a configuration block in the imap4server.xml.
+       The imap4server tag defines the boundaries of the configuration block.  It encloses 
+       all the relevant configuration for the IMAP4 server.  The behavior of the IMAP4 service is
+       controlled by the attributes and children of this tag.</p>
+    
+    <p>This tag has an optional boolean attribute - <strong>enabled</strong> - that defines whether the service is active or not.  The value defaults to "true" if
+       not present.</p>
+    
+    <p>The standard children of the imapserver tag are:</p>
+
+      <dl>
+        <dt><strong>bind</strong></dt>
+        <dd>Configure this to bind to a specific inetaddress. This is an optional integer value.  This value is the port on which this IMAP4 server is configured 
+      to listen. If the tag or value is absent then the service 
+      will bind to all network interfaces for the machine If the tag or value is omitted, the value will default to the standard IMAP4 port
+      port 143 is the well-known/IANA registered port for IMAP 
+     port 993 is the well-known/IANA registered port for IMAPS  ie over SSL/TLS</dd>
+        <dt><strong>connectionBacklog</strong></dt>
+        <dd>Number of connection backlog of the server (maximum number of queued connection requests)</dd>
+        <dt><strong>compress</strong></dt>
+        <dd>true or false - Use or don't use COMPRESS extension.</dd>
+        <dt><strong>maxLineLength</strong></dt>
+        <dd>Maximal allowed line-length before a BAD response will get returned to the client
+            This should be set with caution as a to high value can make the server a target for DOS (Denial of Service)!</dd>
+
+        <dt><strong>inMemorySizeLimit</strong></dt>
+        <dd>Optional. Size limit before we will start to stream to a temporary file.
+            Defaults to 10MB. Must be a positive integer, optionally with a unit: B, K, M, G.</dd>
+        <dt><strong>literalSizeLimit</strong></dt>
+        <dd>Optional. Maximum size of a literal (IMAP APPEND).
+            Defaults to 0 (unlimited). Must be a positive integer, optionally with a unit: B, K, M, G.</dd>
+        <dt><strong>jmxName</strong></dt>
+        <dd>The name given to the configuration</dd>
+        <dt><strong>tls</strong></dt>
+        <dd>Set to true to support STARTTLS or SSL for the Socket.
+         To use this you need to copy sunjce_provider.jar to /path/james/lib directory. To create a new keystore execute:
+             keytool -genkey -alias james -keyalg RSA -storetype PKCS12 -keystore /path/to/james/conf/keystore<br/>
+        Please note that each IMAP server exposed on different port can specify its own keystore, independently from any other
+        TLS based protocols.</dd>
+        <dt><strong>handler.helloName</strong></dt>
+        <dd>This is the name used by the server to identify itself in the IMAP4 
+        protocol.  If autodetect is TRUE, the server will discover its 
+        own host name and use that in the protocol.  If discovery fails, 
+        the value of 'localhost' is used.  If autodetect is FALSE, James 
+        will use the specified value.</dd>
+        <dt><strong>handler.connectiontimeout</strong></dt>
+        <dd>Connection timeout in secconds</dd>
+        <dt><strong>handler.connectionLimit</strong></dt>
+        <dd>Set the maximum simultaneous incoming connections for this service</dd>
+        <dt><strong>handler.connectionLimitPerIP</strong></dt>
+        <dd>Set the maximum simultaneous incoming connections per IP for this service</dd>
+        <dt><strong>concurrentRequests</strong></dt>
+        <dd>Maximum number of IMAP requests executed simultaneously. Past that limit requests are queued. Defaults to 20.
+            Negative values deactivate this feature, leading to unbounded concurrency.</dd>
+        <dt><strong>maxQueueSize</strong></dt>
+        <dd>Upper bound to the IMAP throttler queue. Upon burst, requests that cannot be queued are rejected and not executed.
+            Integer, defaults to 4096, must be positive, 0 means no queue.</dd>
+        <dt><strong>proxyRequired</strong></dt>
+        <dd>
+          Enables proxy support for this service for incoming connections. HAProxy's protocol
+          (https://www.haproxy.org/download/2.7/doc/proxy-protocol.txt) is used and might be compatible
+          with other proxies (e.g. traefik). If enabled, it is *required* to initiate the connection
+          using HAProxy's proxy protocol.
+        </dd>
+        <dt><strong>proxyFirst</strong></dt>
+        <dd>Whether proxy frames should be handled before SSL handshakes. This allows setting either the loadbalancer in TCP mode
+            (so transparent for SSL then Proxy frames needs to be handled first) or set up SSL termination between proxy and server
+            (more suited for some cloud vendors). Defaults to true (TCP transparent).
+        </dd>
+        <dt><strong>handler.handlerchain</strong></dt>
+        <dd>This loads the core CommandHandlers. Only remove this if you really 
+             know what you are doing</dd>
+        <dt><strong>plainAuthDisallowed</strong></dt>
+        <dd>Deprecated. Should use `auth.plainAuthEnabled`, `auth.requireSSL` instead. Whether to enable Authentication PLAIN if the connection is not encrypted via SSL or STARTTLS. Defaults to true.</dd>
+        <dt><strong>auth.plainAuthEnabled</strong></dt>
+        <dd>Whether to enable Authentication PLAIN/ LOGIN command. Defaults to true.</dd>
+        <dt><strong>auth.requireSSL</strong></dt>
+        <dd>true or false. Defaults to true. Whether to require SSL to authenticate. If this is required, the IMAP server will disable authentication on unencrypted channels.</dd>
+        <dt><strong>auth.oidc.oidcConfigurationURL</strong></dt>
+        <dd>Provide OIDC url address for information to user. Only configure this when you want to authenticate IMAP server using a OIDC provider.</dd>
+        <dt><strong>auth.oidc.jwksURL</strong></dt>
+        <dd>Provide url to get OIDC's JSON Web Key Set to validate user token. Only configure this when you want to authenticate IMAP server using a OIDC provider.</dd>
+        <dt><strong>auth.oidc.claim</strong></dt>
+        <dd>Claim string uses to identify user. E.g: "email_address". Only configure this when you want to authenticate IMAP server using a OIDC provider.</dd>
+        <dt><strong>auth.oidc.scope</strong></dt>
+        <dd>An OAuth scope that is valid to access the service (RF: RFC7628). Only configure this when you want to authenticate IMAP server using a OIDC provider.</dd>
+
+        <dt><strong>bossWorkerCount</strong></dt>
+        <dd>Set the maximum count of boss threads. Boss threads are responsible for accepting incoming IMAP connections
+          and initializing associated resources. Optional integer, by default, boss threads are not used and this responsibility is being dealt with
+            by IO threads</dd>
+
+        <dt><strong>ioWorkerCount</strong></dt>
+        <dd>Set the maximum count of IO threads. IO threads are responsible for receiving incoming IMAP messages and framing them
+          (split line by line). IO threads also take care of compression and SSL encryption. Their tasks are short-lived and non-blocking.
+              Optional integer, defaults to 2 times the count of CPUs.</dd>
+
+
+          <dt><strong>useEpoll</strong></dt>
+          <dd>true or false - If true uses native EPOLL implementation for Netty otherwise uses NIO. Defaults to false.</dd>
+
+          <dt><strong>gracefulShutdown</strong></dt>
+          <dd>true or false - If true attemps a graceful shutdown, which is safer but can take time. Defaults to true.</dd>
+          <dt><strong>highWriteBufferWaterMark</strong></dt>
+          <dd>Netty's write buffer high watermark configuration. Unit supported: none, K, M. Netty defaults applied.</dd>
+          <dt><strong>lowWriteBufferWaterMark</strong></dt>
+          <dd>Netty's write buffer low watermark configuration. Unit supported: none, K, M. Netty defaults applied.</dd>
+
+        <dt><strong>ignoreIDLEUponProcessing</strong></dt>
+        <dd>true or false - Allow disabling the heartbeat handler. Defaults to true.</dd>
+
+      <dt><strong>idCommandResponse.field</strong></dt>
+      <dd>Store the fields response for ID Command, with each tag containing a name-value pair corresponding to the attribute name. Ref: rfc2971</dd>
+      </dl>
+
+    <subsection name="OIDC set up">
+        <p>James IMAP support XOAUTH2 authentication mechanism which allow authenticating against a OIDC providers.
+            Please configure <code>auth.oidc</code> part to use this.</p>
+        <p>We do supply an <a href="https://github.com/apache/james-project/tree/master/examples/oidc">example</a> of such a setup. It uses the
+            <a href="https://www.keycloak.org/">Keycloack</a> OIDC provider, but usage of similar technologies is definitely doable.</p>
+    </subsection>
+    <subsection name="Traffic Shaping">
+
+        <p>James ships optional <a href="https://netty.io/4.0/api/io/netty/handler/traffic/ChannelTrafficShapingHandler.html">Netty built in Traffic Shaping</a>
+            that can be optionally configured.</p>
+
+        <ul>This enables both:
+            <li>Record per channel bandwidth consumption</li>
+            <li>Allows defining per channel bandwidth limit, which helps at fairness and maintaining a good quality of service.</li>
+        </ul>
+
+        <p>Example:</p>
+
+        <pre><code>
+&lt;imapserver&gt;
+    &lt;!-- ... --&gt;
+        &lt;trafficShaping&gt;
+            &lt;writeTrafficPerSecond&gt;0&lt;/writeTrafficPerSecond&gt;
+            &lt;readTrafficPerSecond&gt;0&lt;/readTrafficPerSecond&gt;
+            &lt;checkInterval&gt;1000&lt;/checkInterval&gt;
+            &lt;maxDelays&gt;15000&lt;/maxDelays&gt;
+        &lt;/trafficShaping&gt;
+&lt;/imapserver&gt;
+        </code></pre>
+
+        <p>Those tags maps to the corresponding Netty argument.</p>
+
+        <p>If omitted no traffic handle is added to the channel pipeline.</p>
+    </subsection>
+
+    <subsection name="Extending IMAP">
+        <p><b>WARNING: </b>IMAP extension applies only for Guice based distributions</p>
+
+        <p>IMAP decoders, processors and encoder can be customized.</p>
+
+        <p>Check this <a href="https://github.com/apache/james-project/tree/master/examples/custom-imap">example</a>.</p>
+
+        <p>The following configuration properties are available for extentions:</p>
+        <dl>
+        <dt><strong>imapPackages</strong></dt>
+        <dd>Configure (union) of IMAP packages. IMAP packages bundles decoders (parsing IMAP commands) processors and encoders,
+            thus enable implementing new IMAP commands or replace existing IMAP processors. List of FQDNs, which can be located in
+            James extensions.</dd>
+        <dt><strong>customProperties</strong></dt>
+        <dd>Properties for custom extension. Each tag is a property entry, and holds a string under the form key=value.</dd>
+        </dl>
+
+    </subsection>
+
+    <subsection name="Mail user agents auto-configuration">
+        <p>Check this example on <a href="https://github.com/apache/james-project/tree/master/examples/imap-autoconf">Mail user agents auto-configuration</a>.</p>
+    </subsection>
+
+    <subsection name="Local cache for partial Fetch">
+        <p>Because some clients uses partial fetch in order to emulate retriable download of individual body parts
+            we offer a way for James to cache in the IMAP session the latest partially fetched message. This is done using
+            a weak reference, a total size dedicated to the cache as well as a time to leave cache cleanup, all of this
+            being configurable.</p>
+
+        <p>Example:</p>
+    </subsection>
+
+    <pre><code>
+&lt;imapserver&gt;
+        &lt;partialBodyFetchCacheEnabled&gt;true&lt;/partialBodyFetchCacheEnabled&gt;
+        &lt;partialBodyFetchCacheDuration&gt;2min&lt;/partialBodyFetchCacheDuration&gt;
+        &lt;partialBodyFetchCacheSize&gt;500 MiB&lt;/partialBodyFetchCacheSize&gt;
+&lt;/imapserver&gt;
+    </code></pre>
+</section>
+
+</body>
+
+</document>

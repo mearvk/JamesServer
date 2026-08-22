@@ -1,0 +1,220 @@
+<?xml version="1.0"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
+<document>
+
+    <properties>
+        <title>Apache James Server 3 - JMAP Configuration</title>
+    </properties>
+
+    <body>
+
+        <section name="JMAP configuration">
+
+            <p><a href="https://jmap.io/">JMAP</a>  is intended to be a new standard for email clients to connect to mail
+                stores. It therefore intends to primarily replace IMAP + SMTP submission. It is also designed to be more
+                generic. It does not replace MTA-to-MTA SMTP transmission.</p>
+
+            <p>Cassandra Guice proposes a JMAP implementation.</p>
+
+            <subsection name="jmap.properties">
+
+                <p>Consult <a href="https://github.com/apache/james-project/blob/master/server/apps/distributed-app/sample-configuration/jmap.properties">jmap.properties</a> in GIT to get some examples and hints.</p>
+
+                <br/>
+
+                <dl>
+                    <dt><strong>enabled</strong></dt>
+                    <dd>true/false. Governs whether JMAP should be enabled</dd>
+
+                    <dt><strong>jmap.port</strong></dt>
+                    <dd>Optional. Defaults to 80. The port this server will be listening on. This value must be a valid
+                    port, ranging between 1 and 65535 (inclusive)</dd>
+
+                    <dt><strong>tls.keystoreURL</strong></dt>
+                    <dd>Keystore to be used for generating authentication tokens for password authentication mechanism.
+                    This should not be the same keystore than the ones used by TLS based protocols.</dd>
+
+                    <dt><strong>tls.secret</strong></dt>
+                    <dd>Password used to read the keystore</dd>
+
+                    <dt><strong>jwt.publickeypem.url</strong></dt>
+                    <dd>Optional. Coma separated list of RSA public keys URLs to validate JWT tokens allowing requests to bypass authentication.
+                        Defaults to an empty list.</dd>
+
+                    <dt><strong>url.prefix</strong></dt>
+                    <dd>Optional. Configuration urlPrefix for JMAP routes.</dd>
+                    <dd>Default value: http://localhost.</dd>
+
+                    <dt><strong>websocket.url.prefix</strong></dt>
+                    <dd>Optional. URL for JMAP WebSocket route</dd>
+                    <dd>Default value: ws://localhost</dd>
+
+                    <dt><strong>websocket.ping.interval</strong></dt>
+                    <dd>Optional. Configure the duration of the interval between consecutive ping messages (as specified in RFC6455) sent by the server to the client over a WebSocket connection.
+                        The supported unit is seconds (e.g: `3s` for a 3-second interval)</dd>
+                    <dd>Default is empty, this feature is disabled.</dd>
+
+                    <dt><strong>upload.max.size</strong></dt>
+                    <dd>Optional. Configuration max size for each upload file in new JMAP-RFC-8621.</dd>
+                    <dd>Default value: 30M. Supported units are B (bytes) K (KB) M (MB) G (GB).</dd>
+
+                    <dt><strong>upload.quota.limit</strong></dt>
+                    <dd>Optional. Configure JMAP upload quota for total existing uploads' size per user. User exceeding the upload quota would result in old uploads being cleaned up.</dd>
+                    <dd>Default value: 200M. Supported units are B (bytes) K (KB) M (MB) G (GB).</dd>
+
+                    <dt><strong>email.send.max.size</strong></dt>
+                    <dd>Optional. Configuration max size for message created in RFC-8621.</dd>
+                    <dd>Default value: None. Supported units are B (bytes) K (KB) M (MB) G (GB).</dd>
+
+                    <dt><strong>max.size.attachments.per.mail</strong></dt>
+                    <dd>Optional. Defaults to 20MB. RFC-8621 <code>maxSizeAttachmentsPerEmail</code> advertised to JMAP
+                        client as part of the <code>urn:ietf:params:jmap:mail</code> capability. This needs to be at
+                        least 33% lower than <code>email.send.max.size</code> property (in order to account for text body,
+                        headers, base64 encoding and MIME structures). JMAP clients would use this property in order not
+                        to create too big emails.</dd>
+                    <dd>Default value: None. Supported units are B (bytes) K (KB) M (MB) G (GB).</dd>
+
+                    <dt><strong>view.email.query.enabled</strong></dt>
+                    <dd>Optional boolean. Defaults to false.</dd>
+                    <dd>Should simple Email/query be resolved against a Cassandra projection, or should we resolve them against OpenSearch?
+                        This enables a higher resilience, but the projection needs to be correctly populated.</dd>
+
+                    <dt><strong>user.provisioning.enabled</strong></dt>
+                    <dd>Optional boolean. Defaults to true.</dd>
+                    <dd>Governs whether authenticated users that do not exist locally should be created in the users repository.
+                    </dd>
+
+                    <dt><strong>authentication.strategy.rfc8621</strong></dt>
+                    <dd>List[String] with delimiter ",". Defaults to JWTAuthenticationStrategy,BasicAuthenticationStrategy.</dd>
+                    <dd>Specify which authentication strategies system admin want to use for JMAP RFC-8621 server.
+                        The implicit package name is "org.apache.james.jmap.http". If you have a custom authentication strategy outside this package, you have to specify its FQDN.
+                        If no authentication strategy is specified, JMAP RFC-8621 server will fallback to default strategies:
+                    JWTAuthenticationStrategy, BasicAuthenticationStrategy.</dd>
+
+                    <dt><strong>jmap.version.default</strong></dt>
+                    <dd>Optional string. Defaults to rfc-8621. Allowed values: rfc-8621</dd>
+                    <dd>Which version of the JMAP protocol should be served when none supplied in the Accept header.</dd>
+
+                    <dt><strong>dynamic.jmap.prefix.resolution.enabled</strong></dt>
+                    <dd>Optional boolean. Defaults to false. Supported Jmap session endpoint returns dynamic prefix in response.
+                        When its config is true, and the HTTP request to Jmap session endpoint has a `X-JMAP-PREFIX` header with the value `http://new-domain/prefix`,
+                        then `apiUrl, downloadUrl, uploadUrl, eventSourceUrl, webSocketUrl` in response will be changed with a new prefix. Example: The `apiUrl` will be "http://new-domain/prefix/jmap".
+                        If the HTTP request to Jmap session endpoint has the `X-JMAP-WEBSOCKET-PREFIX` header with the value `ws://new-domain/prefix`,
+                        then `capabilities."urn:ietf:params:jmap:websocket".url` in response will be "ws://new-domain/prefix/jmap/ws".
+                    </dd>
+
+                    <dt><strong>webpush.prevent.server.side.request.forgery</strong></dt>
+                    <dd>Optional boolean. Prevent server side request forgery by preventing calls to the private network
+                        ranges. Defaults to true, can be disabled for testing.
+                    </dd>
+
+                    <dt><strong>cassandra.filter.projection.activated</strong></dt>
+                    <dd>Optional boolean. Defaults to false. Casandra backends only. Whether to use or not the Cassandra projection
+                        for JMAP filters. This projection optimizes reads, but needs to be correctly populated. Turning it on on
+                        systems with filters already defined would result in those filters to be not read.
+                    </dd>
+
+                    <dt><strong>delay.sends.enabled</strong></dt>
+                    <dd>Optional boolean. Defaults to false. Whether to support or not the delay send with JMAP protocol. </dd>
+
+                    <dt><strong>disabled.capabilities</strong></dt>
+                    <dd>Optional, defaults to empty. Coma separated list of JMAP capabilities to reject.
+                        This allows to prevent users from using some specific JMAP extensions.</dd>
+
+                    <dt><strong>email.get.full.max.size</strong></dt>
+                    <dd>Optional, default value is 5. The max number of items for EmailGet full reads</dd>
+
+                    <dt><strong>get.max.size</strong></dt>
+                    <dd>Optional, default value is 500. The max number of items for /get methods.</dd>
+
+                    <dt><strong>set.max.size</strong></dt>
+                    <dd>Optional, default value is 500. The max number of items for /set methods.</dd>
+
+                    <dt><string>authentication.strategy.rfc8621.xUser.secret</string></dt>
+                    <dd>Optional, List[String] with delimiter ",". Disabled by default. Secret-value used to validate the X-User-Secret header when using the XUserAuthenticationStrategy. Use of this configuration property is highly advised.</dd>
+                </dl>
+
+            </subsection>
+
+            <subsection name="Wire tapping">
+                <p>Enabling <b>TRACE</b> on <b>org.apache.james.jmap.wire</b> enables reactor-netty wiretap, logging of
+                all incoming and outgoing requests, outgoing requests. This will log also potentially sensible information
+                like authentication credentials.</p>
+            </subsection>
+
+            <subsection name="OIDC set up">
+                <p>The use of <code>XUserAuthenticationStrategy</code> allow delegating the authentication responsibility to a third party system,
+                    which could be used to set up authentication against an OIDC provider.</p>
+                <p>We do supply an <a href="https://github.com">example</a> of such a setup. It combines the
+                    <a href="https://www.keycloak.org/">Keycloack</a> OIDC provider with the
+                    <a href="https://www.krakend.io/">Krackend</a> API gateway, but usage of similar technologies is definitely doable.</p>
+            </subsection>
+
+            <subsection name="JMAP-RFC-8621">
+                <p>The finalized version of JMAP regarding the core specifications [<a href="https://tools.ietf.org/html/rfc8620">RFC-8620</a>]
+                and the mail specifications [<a href="https://tools.ietf.org/html/rfc8621">RFC-8621</a>] are being
+                currently implemented in James (<em>JMAP-RFC-8621</em> version).</p>
+
+                <p>You need to add an extra <em>jmapVersion</em> field in your <b>Accept</b> header of your JMAP request:</p>
+
+                <ul>
+                    <li><b>JMAP-RFC-8621</b>: <em>Accept: application/json; jmapVersion=rfc-8621</em></li>
+                </ul>
+            </subsection>
+
+            <subsection name="Annotated specification">
+                <p>The <a href="https://github.com/apache/james-project/tree/master/server/protocols/jmap-rfc-8621/doc/specs/spec">annotated documentation</a>
+                presents the limits of the JMAP RFC-8621 implementation part of the Apache James project. We furthermore implement
+                    <a href="https://tools.ietf.org/html/rfc8887">JSON Meta Application Protocol (JMAP) Subprotocol for WebSocket</a>.</p>
+
+                <p>Some methods / types are not yet implemented, some implementations are naive, and the PUSH is not supported yet.</p>
+
+                <p>Users are invited to read these limitations before using actively the JMAP RFC-8621 implementation, and should ensure their
+                client applications only uses supported operations.</p>
+
+                <p>Contributions enhancing support are furthermore welcomed.</p>
+
+                <ul>The list of tested JMAP clients are:
+                    <li>Experiments had been run on top of <a href="https://github.com/iNPUTmice/lttrs-android">LTT.RS</a>. Version in the Accept
+                        headers needs to be explicitly set to `rfc-8621`. <a href="https://github.com/linagora/james-project/pull/4089">Read more</a>.</li>
+                </ul>
+            </subsection>
+
+            <subsection name="JMAP auto-configuration">
+
+                <p><a href="https://datatracker.ietf.org/doc/html/rfc8620">RFC-8620</a> defining JMAP core RFC defines precisely service location.</p>
+
+                <p>James already redirects `http://jmap.domain.tld/.well-known/jmap` to the JMAP session.</p>
+
+                <p>You can further help your clients by publishing extra SRV records.</p>
+
+                <pre><code>_jmap._tcp.domain.tld. 3600        IN    SRV    0 1 443 jmap.domain.tld.</code></pre>
+            </subsection>
+
+            <subsection name="Reverse-proxy set up">
+                <p>James implementation adds the value of <code>X-Real-IP</code> header as part of the logging MDC.</p>
+
+                <p>This allows for reverse proxies to cary other the IP address of the client down to the JMAP server for diagnostic purpose.</p>
+            </subsection>
+        </section>
+
+    </body>
+
+</document>

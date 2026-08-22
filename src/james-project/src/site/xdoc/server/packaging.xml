@@ -1,0 +1,286 @@
+<?xml version="1.0"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
+<document>
+
+    <properties>
+        <title>Apache James Server 3 - Packaging</title>
+    </properties>
+
+    <body>
+
+        <section name="Available packaging options">
+            <p>James components are assembled in various way, called packaging.</p>
+
+            <ul>The packaging you choose will influence:
+                <li>Your java requirement</li>
+                <li>The protocol the mail server supports</li>
+                <li>The components you can use</li>
+            </ul>
+
+            <p>Thus, one must carefully choose his packaging.</p>
+
+            <ul>To help you doing this, here is a list of available packages:
+                <li><a href="https://github.com/apache/james-project/tree/master/server/apps/spring-app">Spring</a>: Allows you to
+                    choose across various available implementations for each component. Requires more configuration effort.</li>
+                <li><a href="https://github.com/apache/james-project/tree/master/server/apps/cassandra-app">
+                    Cassandra-guice</a>: Ships a James server storing emails in Cassandra and index them in OpenSearch targeting single server deployment. Optional support for LDAP authentication.</li>
+                <li><a href="https://github.com/apache/james-project/tree/master/server/apps/distributed-app">
+                    Distributed: cassandra-rabbitmq-guice</a>: Ships a James server storing emails in Cassandra and index them in OpenSearch targeting multi node deployments. S3 is used to store blobs. RabbitMQ is used for inter-node messaging. Optional support for LDAP authentication.</li>
+                <li><a href="https://github.com/apache/james-project/tree/master/server/apps/jpa-app">
+                    Jpa-Guice</a>: Ships a James server storing emails in a SQL database (derby by default) accessed with JPA and Lucene to index emails and targets single node deployment.</li>
+                <li><a href="https://github.com/apache/james-project/tree/master/server/apps/jpa-smtp-app">
+                    Jpa-Smtp</a>: A tiny SMTP server shiped without mailbox, using SQL database to store data, accessed by JPA.</li>
+            </ul>
+
+            <p>Note: Especially using Guice, one can easily define new modules for existing James components, as well as
+            for third party code. Note that building your own combination of components will lead to an untested and unsupported server.
+            </p>
+        </section>
+
+        <section name="Support matrix">
+            <p>
+                <table>
+                    <tr>
+                        <th>Packaging</th>
+                        <th>Spring</th>
+                        <th>Cassandra-guice</th>
+                        <th>Distributed Cassandra-rabbitMQ-guice</th>
+                        <th>Jpa-guice</th>
+                        <th>Jpa-smtp</th>
+                    </tr>
+                    <tr>
+                        <td>IoC framework</td>
+                        <td>Spring</td>
+                        <td>Guice</td>
+                        <td>Guice</td>
+                        <td>Guice</td>
+                        <td>Guice</td>
+                    </tr>
+                    <tr>
+                        <td>Docker image</td>
+                        <td>Not available. Contributions welcomed for JIB support.</td>
+                        <td>apache/james:cassandra-3.8.2</td>
+                        <td>apache/james:distributed-3.8.2</td>
+                        <td>apache/james:jpa-3.8.2</td>
+                        <td>None</td>
+                    </tr>
+                    <tr>
+                        <td>Supports SMTP</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                    </tr>
+                    <tr>
+                        <td>Deployment model</td>
+                        <td>Single node</td>
+                        <td>Single node</td>
+                        <td>Multi node</td>
+                        <td>Single node</td>
+                        <td>Single node</td>
+                    </tr>
+                    <tr>
+                        <td>Supports IMAP</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>No</td>
+                    </tr>
+                    <tr>
+                        <td>Supports JMAP</td>
+                        <td>No</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>No</td>
+                        <td>No</td>
+                    </tr>
+                    <tr>
+                        <td>Supports POP3</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>No</td>
+                    </tr>
+                    <tr>
+                        <td>Supports FetchMail</td>
+                        <td>Yes</td>
+                        <td>No</td>
+                        <td>No</td>
+                        <td>No</td>
+                        <td>No</td>
+                    </tr>
+                    <tr>
+                        <td>Supports CLI</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>No</td>
+                    </tr>
+                    <tr>
+                        <td>Supports WebAdmin</td>
+                        <td>No</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                    </tr>
+                    <tr>
+                        <td>Supports Grafana metrics (Prometheus)</td>
+                        <td>No</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                        <td>Yes</td>
+                    </tr>
+                    <tr>
+                        <td>Mailbox implementation</td>
+                        <td>JPA/MailDir/Memory</td>
+                        <td>Cassandra</td>
+                        <td>Cassandra</td>
+                        <td>JPA</td>
+                        <td>JPA</td>
+                    </tr>
+                    <tr>
+                        <td>Indexer implementation</td>
+                        <td>Lucene/None</td>
+                        <td>OpenSearch</td>
+                        <td>OpenSearch</td>
+                        <td>Lucene</td>
+                        <td>None</td>
+                    </tr>
+                    <tr>
+                        <td>Server data implementation</td>
+                        <td>JPA/File</td>
+                        <td>JPA/File</td>
+                        <td>Cassandra</td>
+                        <td>Cassandra</td>
+                        <td>JPA</td>
+                        <td>JPA</td>
+                    </tr>
+                    <tr>
+                        <td>Mail queue implementation</td>
+                        <td>ActiveMQ</td>
+                        <td>ActiveMQ</td>
+                        <td>RabbitMQ</td>
+                        <td>ActiveMQ</td>
+                        <td>ActiveMQ</td>
+                    </tr>
+                    <tr>
+                        <td>Sieve</td>
+                        <td>Experimental</td>
+                        <td>Experimental</td>
+                        <td>Experimental</td>
+                        <td>Experimental</td>
+                        <td>No</td>
+                    </tr>
+                    <tr>
+                        <td>User defined mailbox listener registration</td>
+                        <td>No</td>
+                        <td>Yes (master)</td>
+                        <td>Yes (master)</td>
+                        <td>Yes (master)</td>
+                        <td>No</td>
+                    </tr>
+                    <tr>
+                        <td>Installation instructions</td>
+                        <td><a href="install.html">Here</a></td>
+                        <td><a href="install/guice-cassandra.html">Here</a></td>
+                        <td><a href="install/guice-cassandra-rabbitmq-s3.html">Here</a></td>
+                        <td><a href="install/guice-jpa.html">Here</a></td>
+                        <td><a href="install/guice-jpa-smtp.html">Here</a></td>
+                    </tr>
+                </table>
+
+                <p><b>WARNING</b>: JAMES-3591 Cassandra is not made to store large binary content, its use will be suboptimal compared to
+                    alternatives (namely S3 compatible BlobStores backed by for instance S3, MinIO or Ozone)</p>
+            </p>
+        </section>
+
+        <section name="Docker matrix">
+            <p>
+                <table>
+                    <tr>
+                        <th>Image name</th>
+                        <th>Deployment model</th>
+                        <th>General persistence</th>
+                        <th>Blob persistence</th>
+                        <th>Queue type</th>
+                        <th>Search</th>
+                        <th>Supported protocols</th>
+                    </tr>
+                    <tr>
+                        <td>apache/james:distributed-3.8.2</td>
+                        <td>Multi-node</td>
+                        <td>Cassandra</td>
+                        <td>S3 or Cassandra</td>
+                        <td>RabbitMQ</td>
+                        <td>OpenSearch</td>
+                        <td>SMTP, IMAP, JMAP, POP3, LMTP, WebAdmin</td>
+                    </tr>
+                    <tr>
+                        <td>apache/james:jpa-3.8.2</td>
+                        <td>Single node</td>
+                        <td>Embedded Derby database (JPA, SQL)</td>
+                        <td>Not applicable</td>
+                        <td>In VM</td>
+                        <td>Index Lucene on the filesystem</td>
+                        <td>SMTP, IMAP, POP3, LMTP, WebAdmin</td>
+                    </tr>
+                    <tr>
+                        <td>apache/james:demo-3.8.2</td>
+                        <td>Pre-provisioned Single node instance to ease project discovery</td>
+                        <td>Embedded Derby database (JPA, SQL)</td>
+                        <td>Not applicable</td>
+                        <td>In VM</td>
+                        <td>Index Lucene on the filesystem</td>
+                        <td>SMTP, IMAP, POP3, LMTP, WebAdmin</td>
+                    </tr>
+                    <tr>
+                        <td>apache/james:memory-3.8.2</td>
+                        <td>Single node for test purposes</td>
+                        <td>Memory (no persistence)</td>
+                        <td>Memory (no persistence)</td>
+                        <td>In VM</td>
+                        <td>Scroll on in memory data</td>
+                        <td>SMTP, IMAP, JMAP, POP3, LMTP, WebAdmin</td>
+                    </tr>
+                    <tr>
+                        <td>apache/james:cassandra-3.8.2</td>
+                        <td>Single node on top of a shared database</td>
+                        <td>Cassandra</td>
+                        <td>Cassandra</td>
+                        <td>In VM</td>
+                        <td>OpenSearch</td>
+                        <td>SMTP, IMAP, JMAP, POP3, LMTP, WebAdmin</td>
+                    </tr>
+                </table>
+            </p>
+
+            <p><b>WARNING</b>: JAMES-3591 Cassandra is not made to store large binary content, its use will be suboptimal compared to
+                alternatives (namely S3 compatible BlobStores backed by for instance S3, MinIO or Ozone)</p>
+        </section>
+
+    </body>
+
+</document>

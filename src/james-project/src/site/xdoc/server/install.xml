@@ -1,0 +1,342 @@
+<?xml version="1.0"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.    
+-->
+<document>
+
+ <properties>
+  <title>Apache James Server 3 - Installation</title>
+ </properties>
+
+<body>
+
+<section name="Requirements">
+
+  <subsection name="Java Virtual Machine">
+
+    <p>James 3.8.2 requires a Java Runtime Environment. Java version 11 is required to run the
+       James application. The exact JREs available depends on the platform. In addition, the environment variable JAVA_HOME should be set to
+       the JRE home directory before running James.</p>
+    
+    <p>James 3.8.2 has been successfully tested on OpenJDK 11</p>
+  
+  </subsection>
+  
+  <subsection name="User Privileges">
+    
+    <p>On Linux/Unix platforms, root access will be required to run James (access to ports 
+       below 1024 is generally restricted to the root user).  As SMTP, POP3, and IMAP4 
+       need to open server sockets on such ports in standard configurations, 
+       James requires root access.</p>
+    
+    <p>On Windows platforms, you also need to run James as Administrator privilege.</p>
+  
+  </subsection>
+    
+  <subsection name="Libc6">
+    
+    <p>On Linux, to run the startup/shutdown script via the 'james' command, you also need <code>libc6</code> 
+        (on Ubuntu for example: <code>sudo apt-get install libc6-i386 libc6-dev-i386</code>).</p>
+        
+  </subsection>
+  
+  <subsection name="System Resources">
+    
+    <p>Obviously James also requires sufficient disk space, processor power, and network bandwidth.  But, 
+       other than what's been discussed here, it has no additional special requirements.</p>
+    
+    <p>James is configured to run with 512 MB RAM (-Xmx512M in the bat/sh) available, but may need more or 
+       less depending on the load. With the default configuration, JVM can use until 512M (It does not mean it will do).
+       It really depends on your traffic, and also which mailbox you will use (you can save much memory 
+       if you don't use the default embedded derby database but an external database of your choice).
+       Work is still done to minimize the needed memory.
+    </p>
+  
+  </subsection>
+  
+  </section>
+
+  <section name="Build instructions">
+      <p>Checkout code from the chosen version on <a href="https://github.com/apache/james-project/tree/james-project-3.8.2">
+          GitHub</a>. Follow <a href="https://github.com/apache/james-project/blob/james-project-3.8.2/README.adoc">README instructions</a> about compilation.</p>
+
+      <ul>Using these instructions, you can build the following images:
+          <li>Guice + JPA + Lucene</li>
+          <li>Guice + Cassandra + OpenSearch</li>
+          <li>Guice + Cassandra + OpenSearch + LDAP</li>
+          <li>Spring</li>
+      </ul>
+
+      <p>Alternatively, if you don't want your build to be handled via Docker, you can follow <a href="quick-start-cassandra.html">
+          Guice Cassandra quick-start</a> </p>
+
+      <p>Note that install instructions from command line are available for <a href="install/guice-cassandra.html">Cassandra-Guice</a>,
+          <a href="install/guice-cassandra-rabbitmq-s3.html">Distributed Guice</a>,
+          <a href="install/guice-jpa.html">JPA-Guice</a> and <a href="install/guice-jpa-smtp.html">JPA-SMTP-Guice</a>.
+      </p>
+
+      <p>A <a href="https://github.com/apache/james-project/blob/master/server/apps/distributed-app/docker-compose.yml">
+          docker-compose</a> is available for Guice + Cassandra + OpenSearch + RabbitMQ</p>
+  </section>
+
+  <section name="Install Step by Step">
+
+  This guide documents how to install a Spring flavoured JAMES server.
+  
+  <subsection name="Step 1: Download James"> 
+  
+    <p>Obtain the full James binary (or source) distribution from 
+       the <a href="http://james.apache.org/download.cgi">James 
+       release mirrors</a>.</p>
+      
+    <p>If you have downloaded a binary distribution, you do not need to build James. 
+      Proceed directly to Step 2.</p>
+    
+    <p>If you have downloaded a source package, process first to 
+       the <a href="dev-build.html">build</a> and come back to Step 2.</p>
+  
+  </subsection>
+  
+  <subsection name="Step 2: Deploy James">
+  
+    <p>Unpack the archive into your James installation directory.</p>
+  
+  </subsection>
+  
+  <subsection name="Step 3: Configure James">
+  <!-- 
+      <div class="ui-widget">
+        <div class="ui-state-error ui-corner-all" style="padding: 0 .7em;"> 
+          <p><span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span> 
+          <strong>Preliminary step for JMX on Windows: </strong>
+          to let windows start with JMX username/password enabled, 
+          you need to modify the security settings for the JMX files (./conf/jmx.password and ./conf/jmx.access) 
+          like described here:
+          <a href="http://download.oracle.com/javase/1.5.0/docs/guide/management/security-windows.html">
+          http://download.oracle.com/javase/1.5.0/docs/guide/management/security-windows.html</a>
+        </p>
+        </div>
+      </div>
+  -->
+    <p>After unpacking the binary, the next step is to adjust the initial configuration.  
+       All configuration files are embedded in jars. We ship in the conf folder the configuration files that can be edited to match your needs.
+    </p>
+
+    <p>Additional system files reside under the./conf/META-INF folder.</p>
+    
+    <p>The out of the box configuration makes certain assumptions and has some default 
+       values that are unlikely to be appropriate for real-world servers. 
+       There are a few issues that should be addressed immediately upon installation:</p>
+       <ul>
+        <li>Postmaster Address - Change according to your need - <a href="config-system.html">read more</a>.</li>
+        <li>Most UNIX systems require superuser privileges to open sockets below 1024,
+            which includes the IANA-standard SMTP (on port 25), POP3 (on port 110) and IMAP4 (on port 143).
+            These default ports can be changed in the conf file 
+            (read for <a href="config-pop3.html">pop3</a>, <a href="config-smtp-lmtp.html">smtp</a>
+            and <a href="config-imap4.html">imap4</a>. Obviously, you
+            would then need to reconfigure your clients. This may not be an option if
+            you want to receive mail from external mail servers.</li>
+      </ul>
+    
+    <p>In addition to adjusting these parameters, you may wish to consult the documentation for a discussion of
+       all other configurations.  A list of such configurations, as well as the steps necessary to configure them, can
+       be found <a href="config.html">here</a>.</p>
+    
+  </subsection>
+  
+  <subsection name="Step 4: Start James">
+  
+    <p>Go to the bin subdirectory of the installation directory and run <code>$ ./james start</code>.</p>
+      
+    <p>Running <code>$ ./james help</code> help will provide the list of commands you can invoke. </p>
+    
+    <p>Once started, you'll see in the log file (./log/wrapper.log) that 
+       James is running. This means that Spring has loaded James and is now waiting for a request.</p>
+  
+  </subsection>
+    
+  <subsection name="Step 5: Create Domains and Users">
+  
+    <p>Finally, after launch, it will be necessary to create domain and user accounts 
+       before the James server will be fully operational. Read instructions on creating 
+       <a href="manage-domains.html">domains</a> and <a href="manage-users.html">user accounts</a>.</p>
+    
+    <p>Since at the beginning James is empty, it will not have any domain (except the default one)nor local users
+       registered.</p>
+       
+    <p>To register a local domain and user, cd bin and type james-cli.sh.
+       Follow the given instructions</p>
+       
+    <p>Invoke "james-cli.sh adddomain &lt;mydomain.tls&gt; &lt;mydomain.tls&gt; is the domain name 
+      of the domain you wish to create.</p>
+      
+    <p>Invoke "james-cli.sh adduser &lt;user&gt; &lt;password&gt;" where &lt;user&gt; is the user name 
+      and &lt;password&gt; is the password of the account you wish to create.</p>
+      
+    <p>Please note that the user name MUST be a complete email address of the form &lt;user&gt;@&lt;domain&gt; 
+      (where &lt;domain&gt; is any of the values specified in the &lt;servernames&gt; block of XMLDomainList or
+      a domain defined via the <a href="manage-domains.html">domain management</a>).</p>
+      
+  </subsection>
+  
+  <subsection name="Step 6: Test James">
+
+    <p>Once you have some local users registered, try sending mail to one of them
+        with SMTP (port 25).</p>
+  
+<source>
+$ telnet 127.0.0.1 25
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+220 172.16.1.131 SMTP Server (JAMES SMTP Server 3.0.0) ready Wed, 20 Jul 2017 17:31:33 +0100 (CET)
+ehlo test
+250-172.16.1.131 Hello test (aoscommunity.com [127.0.0.1])
+250-PIPELINING
+250-ENHANCEDSTATUSCODES
+250 8BITMIME
+mail from:&lt;YOUR_NAME@YOUR_DOMAIN&gt;
+250 2.1.0 Sender &lt;YOUR_NAME@YOUR_DOMAIN&gt; OK
+rcpt to:&lt;YOUR_NAME@YOUR_DOMAIN>
+250 2.1.5 Recipient &lt;YOUR_NAME@YOUR_DOMAIN&gt; OK
+data
+354 Ok Send data ending with &lt;CRLF&gt;.&lt;CRLF&gt;
+subject: test
+
+this is a test
+.
+250 2.6.0 Message received
+quit
+Connection closed by foreign host.
+</source>
+
+    <p>Try now to retrieve that mail using POP3 (port 110) or IMAP (port 993 with OpenSSL).</p>
+
+      <source>
+$ openssl s_client -connect 127.0.0.1:993
+
+CONNECTED(00000003)
+Can't use SSL_get_servername
+depth=0 C = FR, ST = Unknown, L = Puteaux, O = James, OU = Linagora, CN = Benoit Tellier
+verify error:num=18:self signed certificate
+verify return:1
+depth=0 C = FR, ST = Unknown, L = Puteaux, O = James, OU = Linagora, CN = Benoit Tellier
+verify error:num=10:certificate has expired
+notAfter=Nov 24 07:32:55 2015 GMT
+verify return:1
+depth=0 C = FR, ST = Unknown, L = Puteaux, O = James, OU = Linagora, CN = Benoit Tellier
+notAfter=Nov 24 07:32:55 2015 GMT
+verify return:1
+---
+Certificate chain
+0 s:C = FR, ST = Unknown, L = Puteaux, O = James, OU = Linagora, CN = Benoit Tellier
+i:C = FR, ST = Unknown, L = Puteaux, O = James, OU = Linagora, CN = Benoit Tellier
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIIDeTCCAmGgAwIBAgIEXaLC/zANBgkqhkiG9w0BAQsFADBtMQswCQYDVQQGEwJG
+UjEQMA4GA1UECBMHVW5rbm93bjEQMA4GA1UEBxMHUHV0ZWF1eDEOMAwGA1UEChMF
+SmFtZXMxETAPBgNVBAsTCExpbmFnb3JhMRcwFQYDVQQDEw5CZW5vaXQgVGVsbGll
+cjAeFw0xNTA4MjYwNzMyNTVaFw0xNTExMjQwNzMyNTVaMG0xCzAJBgNVBAYTAkZS
+MRAwDgYDVQQIEwdVbmtub3duMRAwDgYDVQQHEwdQdXRlYXV4MQ4wDAYDVQQKEwVK
+YW1lczERMA8GA1UECxMITGluYWdvcmExFzAVBgNVBAMTDkJlbm9pdCBUZWxsaWVy
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhW0GWSgkK44XQpwLn8KX
+q9kJ3zgDYllEX7W8p+3sBYMAP0JC+lzh42mX/8XHti0vkmv/vjk0paAsB9s5uYhv
+/W94sdqjexi3L213+OD5Kcy+2tTgXN1ucF65d/dDeqGHAyBs1rm6LgyRwQ5ye8Cl
+OtXbSkz5qujmnFDDzrDIgzefxFsTHHIBTsdyttq2Atqzgdg2LHaFbIntwr6lfl9v
+puXr8p+CY6PfehX8mdmaJ7J/gfAll3zzdgeNUoAW0eDvcsphJ06elsDahieo0n/o
+XVhy+TGWtAQRDZQDjeK2BX/vVSPAlGOW7hVTv7WycAolzKlXZyiJMnwTWJl6YoUP
+vQIDAQABoyEwHzAdBgNVHQ4EFgQU7tDLswRlOJqoX4aVgrXRQbmOYbIwDQYJKoZI
+hvcNAQELBQADggEBAGmzK2i2H5D6xITyN1iNQhXbABQ/3rz9K5dEvy0ZLgYOUqyw
+1WD43Do/A3eZuEZbuuYAlbvDEUNgS7rJ5HCrwIKFbPHWmfRX2j59UX+R8fI6G9wB
+qqcRYWpert347rGT/7MFLHk55LL6Tf//fwoWu6GWRj3wTvosVuunUiiC6zTS4MN9
+moJp+IF03Q6JOPWu7/tfaKfXQHxG/hK492oV2vBG2r29UUJW6YO1S0DK+/cU0cCu
++jqbY1ZOIAk906onRUFoPGuypOm3vmbE6mo5o49rNtp+VmZagZ7GsjJ4KWJB1c6d
+SFNIFlH2VlS8Lywr2tesClWO5tqtMswRsoA9GeU=
+-----END CERTIFICATE-----
+subject=C = FR, ST = Unknown, L = Puteaux, O = James, OU = Linagora, CN = Benoit Tellier
+
+issuer=C = FR, ST = Unknown, L = Puteaux, O = James, OU = Linagora, CN = Benoit Tellier
+
+---
+No client certificate CA names sent
+Peer signing digest: SHA256
+Peer signature type: RSA-PSS
+Server Temp Key: X25519, 253 bits
+---
+SSL handshake has read 1425 bytes and written 363 bytes
+Verification error: certificate has expired
+---
+New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+Server public key is 2048 bit
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+Early data was not sent
+Verify return code: 10 (certificate has expired)
+---
+---
+Post-Handshake New Session Ticket arrived:
+SSL-Session:
+Protocol  : TLSv1.3
+Cipher    : TLS_AES_256_GCM_SHA384
+Session-ID: 92D136BF8C9E3E09C4FF7946A2AFDC8ED6E395A1729532D3544E58F688B787F9
+Session-ID-ctx:
+Resumption PSK: C4E09FF3045720EE910AEA5300D87FDE2200A56F218AC3F75748BE794F73F32790FC8DD35CA70869FBD075727779BA73
+PSK identity: None
+PSK identity hint: None
+SRP username: None
+TLS session ticket lifetime hint: 86400 (seconds)
+TLS session ticket:
+0000 - 03 d2 89 8a 32 48 28 a2-99 24 99 47 b2 05 e8 99   ....2H(..$.G....
+0010 - 6b 9b a9 0b 59 95 dd 2c-fb ba 46 b9 94 ad 36 63   k...Y..,..F...6c
+
+Start Time: 1630033038
+Timeout   : 7200 (sec)
+Verify return code: 10 (certificate has expired)
+Extended master secret: no
+Max Early Data: 0
+---
+read R BLOCK
+
+* OK JAMES IMAP4rev1 Server 2e73ecd482f4 is ready.
+
+a login bob@domain.com 1234
+a OK LOGIN completed.
+
+1 logout
+* BYE IMAP4rev1 Server logging out
+1 OK LOGOUT completed.
+
+closed
+      </source>
+    
+    <p>Trace out James actions in ./log/wrapper.log.</p>
+    
+    <p>Actions that will be taken by James on incoming mail are configured in
+       the mailet pipe line (./conf/mailetcontainer.xml). Look at it if you want to
+       understand what's happening.</p>
+    
+  </subsection>
+
+</section>
+
+</body>
+
+</document>

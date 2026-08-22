@@ -1,0 +1,7 @@
+{
+  "associatedProbability": 0.8,
+  "bucketName": "default",
+  "expectedBlobCount": 99,
+  "deletionWindowSize": 100,
+  "type": "BlobGCTask"
+}

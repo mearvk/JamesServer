@@ -1,0 +1,241 @@
+---
+layout: howTo
+---
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements. See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership. The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License. You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied. See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+
+<!-- Main -->
+<div id="main">
+
+    <!-- Introduction -->
+    <section id="intro" class="main special">
+        <div class="">
+            <div class="content align-left">
+                <header class="major">
+                    <h1><b>Setting up an IMAP server</b></h1>
+                </header>
+
+                <p>
+                    This document will present how to set up a James server in order to serve as a personal IMAP + SMTP
+                    server. We will cover:
+                </p>
+
+                <ul>
+                    <li>DNS resolution and essential DNS records for mail delivery</li>
+                    <li>Server components description</li>
+                    <li>Generation of a custom keystore</li>
+                    <li>Starting James</li>
+                    <li>Basic James administration</li>
+                    <li>Additional features one might want to enable...</li>
+                </ul>
+
+                <p>
+                    This guide rely on the JPA Guice Docker image. To run it, one need to have docker installed.
+                </p>
+
+                <header class="major">
+                    <h2><b>DNS resolution</b></h2>
+                </header>
+
+                <p>
+                    For a public facing mail server to send and receive mail properly, 
+                    it is necessary to configure your public DNS records so that other mailservers can find and send mail to your users, 
+                    and for other mailservers to trust and receive your mail.
+                </p>
+                <header class="major">
+                    <h2><b>MX Record</b></h2>
+                </header>
+
+                <p>
+                    Someone willing to send you an email will first have to discover which IP your mail server has.
+                    The way this is achieved is through MX (means Mail eXchange) DNS record.
+                </p>
+
+                <p>
+                    Imagine bob@domain.org sends a mail to alice@company.com. Bob will:
+                </p>
+
+                <ol>
+                    <li>Ask <code>company.com</code> DNS server its MX entries</li>
+                    <li><code>company.com</code> respond that it is <code>mx.company.com</code></li>
+                    <li>Bob resolves <code>mx.company.com</code> ip address...</li>
+                    <li>...and can establish a connection to <code>mx.company.com</code> to send an email to Alice</li>
+                </ol>
+
+                <p>All you need is to create a MX Record in your Domain Control Panel and point it to the IP of your James server.</p>
+
+                <header class="major">
+                    <h2><b>PTR Record</b></h2>
+                </header>
+
+                <p>
+                    So you want to send an email to friends in another domain. 
+                    Their mailserver will not trust mail coming from your server unless they can do a reverse DNS lookup.
+                </p>
+
+                <p>That is what PTR Record do - A reverse lookup which maps the mailserver IP address to domain name.</p>
+                <p>PTR Record can only be created by your ISP - So don't hesitate to ask them to create it for you.</p>
+                
+                <p>
+                    For Security and Spam Protection, please check our other documents <a href="spf.html">SPF Record</a> and  <a href="dkim.html">DKIM Record</a>. 
+                </p>
+
+                <p>
+                    For testing and checking vulnerabilities, send an email to <a href="https://www.mail-tester.com/">mail-tester</a>. 
+                    It's a free tool that analyze your message, mail server, sending IP... and show you a detailed report of what's configured properly and what's not.
+                </p>
+                <header class="major">
+                    <h2><b>JAMES architecture</b></h2>
+                </header>
+
+                <p>JPA guice docker image relies on an embedded Derby database for storing data. Note that Apache Lucene library
+                    is used for email search. A mail queue is implemented on top of an embedded Apache ActiveMQ. Hence James do not need
+                    any external service for being running.
+                </p>
+
+                <img src="/images/guice-jpa-architecture-overview.png">
+
+                <p>
+                    JPA guice offers the following protocols:
+                </p>
+
+                <ul class="no-padding">
+                    <li><b>SMTP</b> For receiving emails</li>
+                    <li><b>IMAP</b> For reading emails</li>
+                    <li><b><a href="http://james.apache.org/server/manage-webadmin.html">WebAdmin</a></b> is a REST API allowing you to manage Apache JAMES</li>
+                </ul>
+
+                <p>The following protocols are also available:</p>
+
+                <ul class="no-padding">
+                    <li><b>LMTP</b> local version of SMTP</li>
+                    <li><b>POP3</b> For reading emails. Lacks tests</li>
+                    <li><b>JMX</b> is used by a <a href="http://james.apache.org/server/manage-cli.html">command line</a> for administrating Apache James</li>
+                    <li>And <a href="http://james.apache.org/server/feature-protocols.html">more</a>...</li>
+                </ul>
+
+                <header class="major">
+                    <h2><b>Generation of a custom keystore</b></h2>
+                </header>
+
+                <p>In order to maintain a good level of privacy and security, James is relying on TLS cryptography
+                for securing exchanges. We thus need to generate our own personal keystore. Note that this guide do not
+                cover generating a keystore from SSL certificates. A security exception might be configured on the Mail
+                User Agent.</p>
+
+                <p>In order to create a keystore, please run: <code>keytool -genkey -alias james -keyalg RSA -keystore /path/to/james/conf/keystore</code>.
+                James is configured with a default password <code>james72laBalle</code> (used to read the keystore). However, we will be overriding the
+                configuration of the docker image, so you can be defining your own.</p>
+
+                <header class="major">
+                    <h2><b>Starting james</b></h2>
+                </header>
+
+                <p>We want to override the configuration of the docker image with a volume.</p>
+
+                <p>First let's retrieve a valid configuration:</p>
+
+                <pre><code>$ git clone https://github.com/apache/james-project
+$ cp -rf james-project/server/apps/jpa-app/sample-configuration conf
+$ mv keystore conf/keystore</code></pre>
+
+                <p>Modify all protocol configuration files to match your keystore password (imapserver.xml, lmtpserver.xml, managesieveserver.xml, pop3server.xml, smtpserver.xml).</p>
+
+                <p>We will create a local folder for holding data out of the container:</p>
+
+                <pre><code>mkdir var</code></pre>
+
+
+                <p>Then, let's start James:</p>
+
+                <pre><code>docker run \
+--name james_run \
+-p "25:25" -p "465:465" -p "587:587" \
+-p "143:143"  -p "993:993" \
+--volume "$PWD/conf:/root/conf/" \
+--volume "$PWD/var:/root/var/" \
+apache/james:jpa-latest</code></pre>
+
+
+                <header class="major">
+                    <h2><b>Administrating James</b></h2>
+                </header>
+
+                <p>We now have a running James server. We just need to tell him which users and domains it should be handling mails for.
+                We will, in order to do this, use the command line:</p>
+
+                <pre><code>docker exec james_run java -jar /root/james-cli.jar AddDomain domain.tld
+docker exec james_run java -jar /root/james-cli.jar AddUser user@domain.tld secretPassword</code></pre>
+
+                <p>The command line client can be used for several other purposes like managing quota, setting addresses redirections, etc.</p>
+
+                <header class="major">
+                    <h2><b>Configuring thunderbird</b></h2>
+                </header>
+
+                <p>Given that the domain <b>james.local</b> is created and that user <b>user01@james.local</b> have password <b>1234</b>
+                    (which is the setup of the demo image), we will configure thunderbird (here version 78.11.0).</p>
+
+                <p>First go to the <i>Account setting</i> page and click on <i>Add mail account</i>.</p> <br/>
+
+                <img src="/images/tb1.png"/>
+
+                <p>Then document the IP, and ports, username credentials and account name, through the advanced configuration. Note that
+                    the username should include the domain. We recommend using SSL ports for IMAP and SMTP.</p>
+
+                <img src="/images/tb2.png"/>
+
+                <p>Review your accounting settings, especially be careful to pick the right outgoing server...</p>
+
+                <img src="/images/tb3-5.png">
+
+                <p>If you are relying on self signed certificate, you might be prompted to confirm a security exception. Accept.</p>
+
+                <img src="/images/tb3.png">
+
+                <p>You can then enjoy this Thunderbird account!</p>
+
+                <img src="/images/tb4.png">
+
+                <header class="major">
+                    <h2><b>Additional features</b></h2>
+                </header>
+
+                <p>Check this example on <a href="https://github.com/apache/james-project/tree/master/examples/imap-autoconf">Mail user agents autoconfiguration</a>.</p>
+
+                <p>James is a large project with many features. You can go further and complete your installation with
+                an <a href="http://james.apache.org/server/config-antispam.html">AntiSpam system</a>, or set up
+                    <a href="http://james.apache.org/server/metrics.html">metric display</a>, collect logs in ElasticSearch for a display in Kibana,
+                and much more!</p>
+
+                <p>Also, James offers support for <a href="spf.html">SPF</a>
+                    and <a href="dkim.html">DKIM</a> standards, which increase the trust external people can get in your mail system.</p>
+
+            </div>
+            <footer class="major">
+                <ul class="actions align-center">
+                    <li><a href="index.html" class="button">go back to other how-tos</a></li>
+                </ul>
+            </footer>
+        </div>
+    </section>
+
+</div>
+
+

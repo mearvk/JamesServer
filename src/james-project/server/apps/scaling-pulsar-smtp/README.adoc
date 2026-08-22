@@ -1,0 +1,87 @@
+= Pulsar backed SMTP processing
+
+== App goals
+
+This app provides an easily scalable SMTP processing module based on Apache Pulsar for small to large deployments. The idea being that it is easy enough to operate this assembly at a "reasonable" cost in the cloud until the scale is large enough to warrant switching to the fully distributed app.
+
+In order to support such small deployments destined to grow this app relies on :
+
+- Apache pulsar as there are cost-efficient SAAS deployments that make this app easy to deploy
+- A Blobstore (for mail repository) as they are very cost-efficient and available at most providers in the Cloud market.
+- A PostgresSQL database for reference data (domain list, recipient rewrite table and users). PostgreSQL databases as a service is available on multiple cloud platform and for this kind of information entry tiers should allow to operate a reasonable service. 
+
+== Building
+
+In order to build the docker packaging, run:
+
+----
+mvn clean install -DskipTests
+
+----
+
+== ZIP distribution
+
+Available in `target` directory, the ZIP include detailed instructions.
+
+== Docker distribution
+
+To import the image locally:
+
+----
+docker image load -i target/jib-image.tar
+
+----
+
+Then run it:
+
+----
+docker run apache/james:scaling-pulsar-smtp-latest
+
+----
+
+For security reasons you are required to generate your own keystore, that you can mount into the container via a volume:
+
+----
+keytool -genkey -alias james -keyalg RSA -keystore keystore
+docker run -v $PWD/keystore:/root/conf/keystore apache/james:scaling-pulsar-smtp-latest
+----
+
+In the case of quick start James without manually creating a keystore (e.g. for development), just input the command argument `--generate-keystore` when running,
+James will auto-generate keystore file with the default setting that is declared in `jmap.properties` (tls.keystoreURL, tls.secret)
+
+----
+docker run --network james apache/james:scaling-pulsar-smtp-latest --generate-keystore
+----
+
+Use the https://github.com/GoogleContainerTools/jib/blob/master/docs/faq.md#jvm-flags[JAVA_TOOL_OPTIONS environment option]
+to pass extra JVM flags. For instance:
+
+----
+docker run -e "JAVA_TOOL_OPTIONS=-Xmx500m -Xms500m" apache/james:scaling-pulsar-smtp-latest
+----
+
+https://glowroot.org/[Glowroot APM] is packaged as part of the docker distribution to easily enable valuable performances insights.
+Disabled by default, its java agent can easily be enabled:
+
+----
+docker run -e "JAVA_TOOL_OPTIONS=-javaagent:/root/glowroot.jar" apache/james:scaling-pulsar-smtp-latest
+----
+
+The https://james.apache.org/server/manage-cli.html[CLI] can easily be used:
+
+----
+docker exec CONTAINER-ID james-cli ListDomains
+----
+
+Note that you can create a domain via an environment variable. This domain will be created upon James start:
+
+----
+--environment DOMAIN=domain.tld
+----
+
+== Database backend migration
+
+Starting with James 3.9, the scaling-pulsar-smtp application uses the newly introduced Postgres backend instead of the JPA backend.
+
+If you previously deployed the scaling-pulsar-smtp application, you will want to run the https://github.com/apache/james-project/tree/master/server/apps/migration/migration-core-data-jpa-to-pg/sample-configuration[core data JPA to PG migration tool].
+
