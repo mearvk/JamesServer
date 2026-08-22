@@ -1,6 +1,6 @@
 # MearvkServer
 
-NEARVK Email Server 48.0 — based on Apache James 3.9.0
+MEARVK Email Server 48.0 — based on Apache James 3.9.0
 
 ## Overview
 
