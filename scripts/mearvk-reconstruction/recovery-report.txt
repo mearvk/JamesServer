@@ -1,0 +1,57 @@
+MEARVK EMAIL SERVER SOURCE RECOVERY
+===================================
+
+MEARVK:
+https://github.com/mearvk/MearvkEmailServer.git
+
+UPSTREAM:
+https://github.com/apache/james-project.git
+
+UPSTREAM VERSION:
+james-project-3.9.0
+
+SOURCE DIRECTORY:
+/home/mearvk/IdeaProjects/MearvkEmailServer/scripts/mearvk-reconstruction/MearvkEmailServer/src/james-project
+
+RESTORED MODULES:
+
+  [RESTORED] backends-common
+  [RESTORED] event-bus
+  [RESTORED] event-sourcing
+  [RESTORED] javax-mail-extension
+  [RESTORED] mailbox
+  [RESTORED] metrics
+  [RESTORED] protocols
+  [RESTORED] testing/base
+  [RESTORED] third-party
+  [RESTORED] server/container
+  [RESTORED] server/dns-service
+  [RESTORED] server/mailet
+  [RESTORED] server/mailrepository
+  [RESTORED] server/protocols
+  [RESTORED] server/queue
+  [RESTORED] server/task
+
+JAVA FILE COUNT:
+5752
+
+POM FILE COUNT:
+275
+
+GIT STATUS:
+?? src/james-project/backends-common/
+?? src/james-project/event-bus/
+?? src/james-project/event-sourcing/
+?? src/james-project/javax-mail-extension/
+?? src/james-project/mailbox/
+?? src/james-project/metrics/
+?? src/james-project/protocols/
+?? src/james-project/server/container/
+?? src/james-project/server/dns-service/
+?? src/james-project/server/mailet/
+?? src/james-project/server/mailrepository/
+?? src/james-project/server/protocols/
+?? src/james-project/server/queue/
+?? src/james-project/server/task/
+?? src/james-project/testing/
+?? src/james-project/third-party/
