@@ -2,6 +2,12 @@
 
 MEARVK Email Server 48.0 — based on Apache James 3.9.0
 
+## Bitcoin Conjegeum
+
+bc1qs6v4q9zsw70t0umk3m0quhvf9dr6cdeskl28dh
+
+US Democratic and US Policy.
+
 ## Overview
 
 This repository contains a selective checkout of the Apache James Mail Enterprise Server (v3.9.0), a Java-based email server supporting SMTP, IMAP, POP3, JMAP, and WebAdmin protocols.
